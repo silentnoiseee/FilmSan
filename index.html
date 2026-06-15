@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FilmFeed</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  #feed {
+    height: 100dvh;
+    width: 100vw;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+  }
+  #feed::-webkit-scrollbar { display: none; }
+
+  .slide {
+    position: relative;
+    height: 100dvh;
+    width: 100vw;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    overflow: hidden;
+  }
+  .slide video {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .slide .err {
+    position: absolute;
+    color: rgba(255,255,255,.6);
+    font-size: 14px;
+    text-align: center;
+    padding: 0 30px;
+    display: none;
+  }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    padding: 16px 0 10px;
+    color: rgba(255,255,255,.6);
+    font-size: 17px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5);
+    pointer-events: none;
+  }
+  .topbar .active {
+    color: #fff;
+    position: relative;
+  }
+  .topbar .active::after {
+    content: "";
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    bottom: -7px;
+    width: 28px; height: 3px;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  /* ---- Films button + panel ---- */
+  #filmsBtn {
+    position: fixed;
+    top: 12px; left: 14px;
+    z-index: 50;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 19px;
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.25);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 46vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #filmPanel {
+    position: fixed; inset: 0;
+    z-index: 90;
+    background: rgba(0,0,0,.85);
+    backdrop-filter: blur(6px);
+    display: none;
+    flex-direction: column;
+    padding: 60px 20px 30px;
+    overflow-y: auto;
+  }
+  #filmPanel.open { display: flex; }
+  #filmPanel h2 { color: #fff; font-size: 20px; margin-bottom: 16px; }
+  #filmPanel .film {
+    color: #fff;
+    padding: 13px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  #filmPanel .film:hover, #filmPanel .film.sel { background: rgba(255,255,255,.12); }
+  #filmPanel .film .n { color: rgba(255,255,255,.45); font-size: 13px; }
+  #filmPanel .close {
+    position: fixed; top: 16px; right: 18px;
+    color: #fff; font-size: 26px; cursor: pointer;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---- Right action rail ---- */
+  .rail {
+    position: absolute;
+    right: 10px;
+    bottom: 110px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+  .rail .action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .rail .action svg {
+    width: 34px; height: 34px;
+    fill: #fff;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.45));
+    transition: transform .12s ease;
+  }
+  .rail .action:active svg { transform: scale(.85); }
+  .rail .action .count {
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .rail .action.liked svg { fill: #fe2c55; }
+
+  .poster {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: linear-gradient(135deg, #fe2c55, #25f4ee);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 18px;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  }
+
+  .disc {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #555 0 8px, #111 8px 18px, #333 18px);
+    border: 6px solid #1a1a1a;
+    animation: spin 4s linear infinite;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Caption ---- */
+  .meta {
+    position: absolute;
+    left: 14px;
+    right: 80px;
+    bottom: 56px;
+    z-index: 20;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .meta .handle { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+  .meta .desc { font-size: 14px; line-height: 1.45; }
+  .meta .tags { font-weight: 600; }
+  .meta .sound {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 9px; font-size: 13px;
+  }
+  .meta .sound svg { width: 14px; height: 14px; fill: #fff; flex-shrink: 0; }
+  .meta .sound span { white-space: nowrap; overflow: hidden; max-width: 230px; }
+
+  /* ---- Progress bar ---- */
+  .progress {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 26px;
+    z-index: 25;
+    display: flex;
+    align-items: flex-end;
+    cursor: pointer;
+  }
+  .progress .track {
+    width: 100%; height: 3px;
+    background: rgba(255,255,255,.25);
+    margin-bottom: 6px;
+    border-radius: 2px;
+  }
+  .progress .fill {
+    height: 100%; width: 0%;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .pauseicon {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 15;
+    width: 70px; height: 70px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+  }
+  .pauseicon.show { opacity: .85; }
+  .pauseicon svg { width: 100%; height: 100%; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+
+  .bigheart {
+    position: absolute;
+    z-index: 40;
+    width: 90px; height: 90px;
+    pointer-events: none;
+    transform: translate(-50%,-50%) scale(0);
+    fill: #fe2c55;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.4));
+    animation: pop .8s ease forwards;
+  }
+  @keyframes pop {
+    15% { transform: translate(-50%,-50%) scale(1.15) rotate(-8deg); opacity: 1; }
+    30% { transform: translate(-50%,-50%) scale(1) rotate(0); opacity: 1; }
+    80% { transform: translate(-50%,-58%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-90%) scale(.6); opacity: 0; }
+  }
+
+  #muteBtn {
+    position: fixed;
+    top: 12px; right: 14px;
+    z-index: 50;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.45);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #muteBtn svg { width: 20px; height: 20px; fill: #fff; }
+
+  #start {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: #000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    color: #fff;
+    cursor: pointer;
+  }
+  #start h1 { font-size: 30px; font-weight: 800; letter-spacing: -.5px; }
+  #start h1 b { color: #fe2c55; }
+  #start p { color: rgba(255,255,255,.55); font-size: 14px; }
+
+  /* ---- Account button ---- */
+  #accountBtn {
+    position: fixed;
+    top: 12px; right: 60px;
+    z-index: 50;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 19px;
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.25);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 38vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+
+  /* ---- Save button state ---- */
+  .rail .action.save.saved svg { fill: #ffd60a; }
+
+  /* ---- Modals (auth + profile) ---- */
+  .modal {
+    position: fixed; inset: 0;
+    z-index: 120;
+    background: rgba(0,0,0,.8);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal.open { display: flex; }
+  .card {
+    position: relative;
+    background: #161616;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%; max-width: 360px;
+    color: #fff;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .card h2 { font-size: 22px; margin-bottom: 4px; }
+  .card .sub { color: rgba(255,255,255,.5); font-size: 13px; margin-bottom: 14px; word-break: break-word; }
+  .card label { display: block; font-size: 12px; color: rgba(255,255,255,.6); margin: 12px 0 5px; }
+  .card input, .card textarea {
+    width: 100%;
+    background: #0e0e0e;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 9px;
+    padding: 11px 12px;
+    color: #fff; font-size: 14px; font-family: inherit;
+  }
+  .card textarea { resize: vertical; min-height: 64px; }
+  .card .btn {
+    width: 100%; margin-top: 18px;
+    background: #fe2c55; color: #fff;
+    border: none; border-radius: 9px;
+    padding: 12px; font-size: 15px; font-weight: 700;
+    cursor: pointer;
+  }
+  .card .btn.secondary { background: rgba(255,255,255,.1); margin-top: 10px; }
+  .card .switch { margin-top: 14px; text-align: center; font-size: 13px; color: rgba(255,255,255,.55); }
+  .card .switch a { color: #25f4ee; cursor: pointer; font-weight: 600; }
+  .card .msg { margin-top: 12px; font-size: 13px; min-height: 16px; }
+  .card .msg.err { color: #ff6b6b; }
+  .card .msg.ok { color: #4cd964; }
+  .card .x { position: absolute; top: 12px; right: 16px; font-size: 26px; color: #fff; cursor: pointer; line-height: 1; }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <h1>Film<b>Feed</b></h1>
+  <p id="startInfo">Tap anywhere to start watching</p>
+</div>
+
+<div class="topbar"><span>Following</span><span class="active">For You</span></div>
+
+<button id="filmsBtn">&#127902; All films</button>
+<button id="muteBtn" title="Mute / unmute"><svg id="muteIcon" viewBox="0 0 24 24"></svg></button>
+<button id="accountBtn">Log in</button>
+
+<div class="modal" id="authModal">
+  <div class="card">
+    <div class="x" id="authClose">&times;</div>
+    <h2 id="authTitle">Log in</h2>
+    <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
+    <label>Email</label>
+    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    <button class="btn" id="authSubmit">Log in</button>
+    <div class="msg" id="authMsg"></div>
+    <div class="switch" id="authSwitch">New here? <a>Create an account</a></div>
+  </div>
+</div>
+
+<div class="modal" id="profileModal">
+  <div class="card">
+    <div class="x" id="profClose">&times;</div>
+    <h2>Your profile</h2>
+    <div class="sub" id="profEmail"></div>
+    <label>Username</label>
+    <input id="profUsername" maxlength="30" placeholder="username">
+    <label>Display name</label>
+    <input id="profDisplay" maxlength="50" placeholder="Display name">
+    <label>Bio</label>
+    <textarea id="profBio" maxlength="300" placeholder="A little about you…"></textarea>
+    <label>Avatar image URL (optional)</label>
+    <input id="profAvatar" placeholder="https://…">
+    <button class="btn" id="profSave">Save changes</button>
+    <div class="msg" id="profMsg"></div>
+    <button class="btn secondary" id="profLogout">Log out</button>
+  </div>
+</div>
+
+<div id="filmPanel">
+  <div class="close" id="panelClose">&times;</div>
+  <h2>Films</h2>
+  <div id="filmList"></div>
+</div>
+
+<div id="feed"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="videos.js"></script>
+<script>
+// ---- HLS source attach/detach ----
+// Clips stream from Bunny as .m3u8 (adaptive bitrate). Safari plays HLS
+// natively; Chrome/Firefox/Edge need hls.js. We attach on demand and
+// destroy the hls.js instance on unload so ~1,900 clips stay memory-safe.
+const HLS_OK = window.Hls && Hls.isSupported();
+function loaded(vid) { return vid.dataset.loaded === '1'; }
+function attachSrc(vid) {
+  if (loaded(vid)) return;
+  const url = vid.dataset.src;
+  if (/\.m3u8($|\?)/i.test(url)) {
+    if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+      vid.src = url;                                  // Safari / iOS native HLS
+    } else if (HLS_OK) {
+      const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 12 });
+      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) vid.dispatchEvent(new Event('error')); });
+      hls.loadSource(url);
+      hls.attachMedia(vid);
+      vid._hls = hls;
+    } else {
+      vid.src = url;                                  // last-resort fallback
+    }
+  } else {
+    vid.src = url;                                    // plain mp4 (local mode)
+  }
+  vid.dataset.loaded = '1';
+}
+function detachSrc(vid) {
+  if (!loaded(vid)) return;
+  vid.pause();
+  if (vid._hls) { vid._hls.destroy(); vid._hls = null; }
+  vid.removeAttribute('src');
+  vid.load();
+  vid.dataset.loaded = '';
+}
+
+const ICONS = {
+  heart: '<path d="M12 21s-7.5-4.9-10-9.2C.6 9.1 2 5 6 5c2.2 0 3.5 1.2 4.3 2.4l1.7 2.3 1.7-2.3C14.5 6.2 15.8 5 18 5c4 0 5.4 4.1 4 6.8C19.5 16.1 12 21 12 21z"/>',
+  comment: '<path d="M12 2C6.5 2 2 6 2 11c0 2.6 1.2 5 3.3 6.6L4 22l4.9-1.6c1 .3 2 .4 3.1.4 5.5 0 10-4 10-9S17.5 2 12 2z"/>',
+  share: '<path d="M14 4l8 7-8 7v-4.5C7 13.5 4 16 2 19c.5-6 4-10.5 12-11.5V4z"/>',
+  bookmark: '<path d="M6 2h12a1 1 0 0 1 1 1v18l-7-4-7 4V3a1 1 0 0 1 1-1z"/>',
+  play: '<path d="M8 5v14l11-7z"/>',
+  music: '<path d="M9 3v10.6A3.5 3.5 0 1 0 11 17V7h6V3H9z"/>',
+  soundOn: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1c2.9.9 5 3.6 5 6.7s-2.1 5.8-5 6.7v2.1c4-1 7-4.6 7-8.8s-3-7.8-7-8.8z"/>',
+  soundOff: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7z"/>'
+};
+
+const feed = document.getElementById('feed');
+let muted = true;
+let currentFilm = null;   // null = all films, mixed
+
+// ===================== ACCOUNTS (Supabase) =====================
+const SB_URL = 'https://dykfcvjdfuvsonswojgd.supabase.co';
+const SB_KEY = 'sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz'; // publishable key — safe in frontend, protected by RLS
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+let user = null;
+let profile = null;
+const likedSet = new Set();   // clip ids the user has liked
+const savedSet = new Set();   // clip ids the user has saved
+
+async function loadUserData() {
+  if (!user) return;
+  const [{ data: prof }, { data: likes }, { data: saves }] = await Promise.all([
+    sb.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    sb.from('likes').select('clip_id').eq('user_id', user.id),
+    sb.from('saved_clips').select('clip_id').eq('user_id', user.id)
+  ]);
+  profile = prof || null;
+  likedSet.clear(); (likes || []).forEach(r => likedSet.add(r.clip_id));
+  savedSet.clear(); (saves || []).forEach(r => savedSet.add(r.clip_id));
+}
+
+// Reflect liked/saved state onto slides already in the DOM
+function applyUserState() {
+  document.querySelectorAll('.slide').forEach(s => {
+    const id = s.dataset.clipId;
+    s.querySelector('.like')?.classList.toggle('liked', likedSet.has(id));
+    s.querySelector('.save')?.classList.toggle('saved', savedSet.has(id));
+  });
+}
+
+function refreshAccountBtn() {
+  const b = document.getElementById('accountBtn');
+  if (user) { b.textContent = '@' + ((profile && profile.username) || 'me'); b.onclick = openProfile; }
+  else { b.textContent = 'Log in'; b.onclick = () => openAuth('login'); }
+}
+
+// ---- like / save toggles ----
+async function toggleLike(slide) {
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.like');
+  if (el.classList.contains('liked')) {
+    el.classList.remove('liked'); likedSet.delete(id);
+    await sb.from('likes').delete().eq('user_id', user.id).eq('clip_id', id);
+  } else {
+    el.classList.add('liked'); likedSet.add(id);
+    await sb.from('likes').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+async function likeOn(slide) {           // used by double-tap (never unlikes)
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.like');
+  if (!el.classList.contains('liked')) {
+    el.classList.add('liked'); likedSet.add(id);
+    await sb.from('likes').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+async function toggleSave(slide) {
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.save');
+  if (el.classList.contains('saved')) {
+    el.classList.remove('saved'); savedSet.delete(id);
+    await sb.from('saved_clips').delete().eq('user_id', user.id).eq('clip_id', id);
+  } else {
+    el.classList.add('saved'); savedSet.add(id);
+    await sb.from('saved_clips').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+
+// ---- auth modal ----
+let authMode = 'login';
+const authModal = document.getElementById('authModal');
+function openAuth(mode) {
+  authMode = mode || 'login';
+  renderAuthMode();
+  document.getElementById('authMsg').textContent = '';
+  authModal.classList.add('open');
+}
+function renderAuthMode() {
+  const login = authMode === 'login';
+  document.getElementById('authTitle').textContent = login ? 'Log in' : 'Create account';
+  document.getElementById('authSub').textContent = login ? 'Welcome back to FilmFeed.' : 'Join FilmFeed to like and save clips.';
+  document.getElementById('authSubmit').textContent = login ? 'Log in' : 'Sign up';
+  document.getElementById('authSwitch').innerHTML = login ? 'New here? <a>Create an account</a>' : 'Have an account? <a>Log in</a>';
+  document.getElementById('authPass').autocomplete = login ? 'current-password' : 'new-password';
+}
+document.getElementById('authClose').onclick = () => authModal.classList.remove('open');
+document.getElementById('authSwitch').onclick = () => { authMode = authMode === 'login' ? 'signup' : 'login'; renderAuthMode(); };
+document.getElementById('authSubmit').onclick = submitAuth;
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const msg = document.getElementById('authMsg');
+  msg.className = 'msg'; msg.textContent = 'Working…';
+  if (!email || !pass) { msg.className = 'msg err'; msg.textContent = 'Enter email and password.'; return; }
+  const res = authMode === 'signup'
+    ? await sb.auth.signUp({ email, password: pass })
+    : await sb.auth.signInWithPassword({ email, password: pass });
+  if (res.error) { msg.className = 'msg err'; msg.textContent = res.error.message; return; }
+  if (authMode === 'signup' && !res.data.session) {
+    msg.className = 'msg ok';
+    msg.textContent = 'Account created — check your email to confirm, then log in.';
+    return;
+  }
+  authModal.classList.remove('open');
+}
+
+// ---- profile modal ----
+const profileModal = document.getElementById('profileModal');
+function openProfile() {
+  if (!user) return openAuth('login');
+  document.getElementById('profEmail').textContent = user.email || '';
+  document.getElementById('profUsername').value = (profile && profile.username) || '';
+  document.getElementById('profDisplay').value = (profile && profile.display_name) || '';
+  document.getElementById('profBio').value = (profile && profile.bio) || '';
+  document.getElementById('profAvatar').value = (profile && profile.avatar_url) || '';
+  document.getElementById('profMsg').textContent = '';
+  profileModal.classList.add('open');
+}
+document.getElementById('profClose').onclick = () => profileModal.classList.remove('open');
+document.getElementById('profLogout').onclick = async () => { await sb.auth.signOut(); profileModal.classList.remove('open'); };
+document.getElementById('profSave').onclick = async () => {
+  const msg = document.getElementById('profMsg');
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  const username = document.getElementById('profUsername').value.trim().toLowerCase();
+  if (username.length < 3) { msg.className = 'msg err'; msg.textContent = 'Username must be at least 3 characters.'; return; }
+  const updates = {
+    username,
+    display_name: document.getElementById('profDisplay').value.trim() || null,
+    bio: document.getElementById('profBio').value.trim() || null,
+    avatar_url: document.getElementById('profAvatar').value.trim() || null
+  };
+  const { error } = await sb.from('profiles').update(updates).eq('id', user.id);
+  if (error) {
+    msg.className = 'msg err';
+    msg.textContent = /duplicate|unique/i.test(error.message) ? 'That username is taken.' : error.message;
+    return;
+  }
+  profile = Object.assign(profile || { id: user.id }, updates);
+  msg.className = 'msg ok'; msg.textContent = 'Saved!';
+  refreshAccountBtn();
+};
+
+// React to login/logout (also fires once on load with the stored session)
+sb.auth.onAuthStateChange(async (_event, session) => {
+  user = session?.user || null;
+  if (user) { await loadUserData(); }
+  else { profile = null; likedSet.clear(); savedSet.clear(); }
+  refreshAccountBtn();
+  applyUserState();
+});
+// ===================== END ACCOUNTS =====================
+
+// ---- helpers ----
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function encPath(p) {
+  return p.split('/').map(encodeURIComponent).join('/');
+}
+// Full http(s) URLs (Bunny HLS) pass through; local relative paths get encoded.
+function srcAttr(p) {
+  return /^https?:/i.test(p) ? esc(p) : encPath(p);
+}
+function rand(a, b) {
+  const n = Math.floor(Math.random() * (b - a) + a);
+  return n > 1000 ? (n / 1000).toFixed(1) + 'K' : n;
+}
+function hashtag(s) {
+  return '#' + s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Shuffle that avoids showing the same film twice in a row
+// (only allowed when a single film is all that's left).
+function mixFeed(videos) {
+  // bucket clips per film, shuffle within each bucket
+  const buckets = new Map();
+  videos.forEach(v => {
+    const k = v.film + '|' + v.year;
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(v);
+  });
+  const queues = [...buckets.values()].map(shuffle);
+
+  const out = [];
+  let prev = -1;
+  while (queues.some(q => q.length)) {
+    // candidates: non-empty queues, excluding the film we just played
+    let pool = [];
+    queues.forEach((q, i) => { if (q.length && i !== prev) pool.push(i); });
+    if (!pool.length) {
+      // only the previous film remains — no choice
+      pool = queues.map((q, i) => q.length ? i : -1).filter(i => i >= 0);
+    }
+    // weight by remaining clips so big films don't pile up at the end
+    const total = pool.reduce((s, i) => s + queues[i].length, 0);
+    let r = Math.random() * total, pick = pool[0];
+    for (const i of pool) { r -= queues[i].length; if (r <= 0) { pick = i; break; } }
+    out.push(queues[pick].pop());
+    prev = pick;
+  }
+  return out;
+}
+
+// ---- films index ----
+const FILMS = [...new Map(VIDEOS.map(v => [v.film + '|' + v.year, { film: v.film, year: v.year }])).values()]
+  .sort((a, b) => a.film.localeCompare(b.film));
+document.getElementById('startInfo').textContent =
+  `${VIDEOS.length} clips · ${FILMS.length} films · tap to start`;
+
+// ---- film picker panel ----
+const filmPanel = document.getElementById('filmPanel');
+const filmList = document.getElementById('filmList');
+const filmsBtn = document.getElementById('filmsBtn');
+function buildPanel() {
+  filmList.innerHTML = '';
+  const all = document.createElement('div');
+  all.className = 'film' + (currentFilm === null ? ' sel' : '');
+  all.innerHTML = `<span>&#127922; All films (shuffled)</span><span class="n">${VIDEOS.length} clips</span>`;
+  all.onclick = () => selectFilm(null);
+  filmList.appendChild(all);
+  FILMS.forEach(f => {
+    const n = VIDEOS.filter(v => v.film === f.film && v.year === f.year).length;
+    const d = document.createElement('div');
+    d.className = 'film' + (currentFilm && currentFilm.film === f.film ? ' sel' : '');
+    d.innerHTML = `<span>${esc(f.film)} <span class="n">(${esc(f.year)})</span></span><span class="n">${n} clips</span>`;
+    d.onclick = () => selectFilm(f);
+    filmList.appendChild(d);
+  });
+}
+filmsBtn.onclick = () => { buildPanel(); filmPanel.classList.add('open'); };
+document.getElementById('panelClose').onclick = () => filmPanel.classList.remove('open');
+function selectFilm(f) {
+  currentFilm = f;
+  filmPanel.classList.remove('open');
+  filmsBtn.innerHTML = '&#127902; ' + esc(f ? `${f.film} (${f.year})` : 'All films');
+  buildFeed();
+}
+
+// ---- build feed ----
+let observer, loader;
+function buildFeed() {
+  if (observer) observer.disconnect();
+  if (loader) loader.disconnect();
+  feed.innerHTML = '';
+  feed.scrollTop = 0;
+
+  let list;
+  if (currentFilm) {
+    // single film: clips in chronological order
+    list = VIDEOS.filter(v => v.film === currentFilm.film && v.year === currentFilm.year)
+                 .sort((a, b) => a.start.localeCompare(b.start));
+  } else {
+    // all films: shuffled mix, no same film back-to-back
+    list = mixFeed(VIDEOS);
+  }
+
+  const frag = document.createDocumentFragment();
+  list.forEach((v, i) => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.clipId = v.id || v.file;
+    const initial = (v.film || '?').replace(/[^a-zA-Z0-9]/g, '').charAt(0).toUpperCase() || 'F';
+    const caption = `${esc(v.film)} (${esc(v.year)}) &middot; ${esc(v.start)} &ndash; ${esc(v.end)}`;
+    slide.innerHTML = `
+      <video data-src="${srcAttr(v.file)}" loop playsinline muted preload="none"></video>
+      <div class="err">&#9888;&#65039; This clip couldn't be played in your browser<br>(${esc(v.film)} ${esc(v.year)})</div>
+      <div class="pauseicon"><svg viewBox="0 0 24 24">${ICONS.play}</svg></div>
+      <div class="rail">
+        <div class="poster">${initial}</div>
+        <div class="action like${likedSet.has(v.id) ? ' liked' : ''}"><svg viewBox="0 0 24 24">${ICONS.heart}</svg><span class="count">${rand(800, 90000)}</span></div>
+        <div class="action"><svg viewBox="0 0 24 24">${ICONS.comment}</svg><span class="count">${rand(50, 4000)}</span></div>
+        <div class="action save${savedSet.has(v.id) ? ' saved' : ''}"><svg viewBox="0 0 24 24">${ICONS.bookmark}</svg><span class="count">Save</span></div>
+        <div class="action share"><svg viewBox="0 0 24 24">${ICONS.share}</svg><span class="count">Share</span></div>
+        <div class="disc"></div>
+      </div>
+      <div class="meta">
+        <div class="handle">@${esc(v.film)}</div>
+        <div class="desc">${caption} <span class="tags">${hashtag(v.film)} ${hashtag('film' + v.year)} #cinema</span></div>
+        <div class="sound"><svg viewBox="0 0 24 24">${ICONS.music}</svg><span>original sound &mdash; ${esc(v.film)} (${esc(v.year)})</span></div>
+      </div>
+      <div class="progress"><div class="track"><div class="fill"></div></div></div>
+    `;
+    wireSlide(slide);
+    frag.appendChild(slide);
+  });
+  feed.appendChild(frag);
+
+  // Loader: attach/detach video src a couple of screens around the viewport
+  loader = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const vid = e.target.querySelector('video');
+      if (e.isIntersecting) {
+        attachSrc(vid);
+      } else {
+        detachSrc(vid);
+      }
+    });
+  }, { rootMargin: '200% 0px' });
+
+  // Player: play the slide that fills the screen
+  observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      const vid = e.target.querySelector('video');
+      if (e.isIntersecting && e.intersectionRatio >= 0.6) {
+        attachSrc(vid);
+        vid.muted = muted;
+        vid.play().catch(() => {});
+        e.target.querySelector('.pauseicon').classList.remove('show');
+      } else {
+        vid.pause();
+        if (loaded(vid)) vid.currentTime = 0;
+      }
+    });
+  }, { threshold: 0.6 });
+
+  feed.querySelectorAll('.slide').forEach(s => { loader.observe(s); observer.observe(s); });
+}
+
+// ---- per-slide interactions ----
+function wireSlide(slide) {
+  const vid = slide.querySelector('video');
+  const pauseicon = slide.querySelector('.pauseicon');
+  const fill = slide.querySelector('.fill');
+  const progress = slide.querySelector('.progress');
+  const like = slide.querySelector('.like');
+  const err = slide.querySelector('.err');
+
+  vid.addEventListener('error', () => { if (loaded(vid)) err.style.display = 'block'; });
+  vid.addEventListener('playing', () => { err.style.display = 'none'; });
+
+  vid.addEventListener('timeupdate', () => {
+    if (vid.duration) fill.style.width = (vid.currentTime / vid.duration * 100) + '%';
+  });
+  progress.addEventListener('click', e => {
+    e.stopPropagation();
+    const r = progress.getBoundingClientRect();
+    if (vid.duration) vid.currentTime = ((e.clientX - r.left) / r.width) * vid.duration;
+  });
+
+  let lastTap = 0;
+  vid.addEventListener('click', e => {
+    const now = Date.now();
+    if (now - lastTap < 300) {
+      spawnHeart(slide, e.clientX, e.clientY);
+      likeOn(slide);
+    } else {
+      setTimeout(() => {
+        if (Date.now() - lastTap >= 300) {
+          if (vid.paused) { vid.play(); pauseicon.classList.remove('show'); }
+          else { vid.pause(); pauseicon.classList.add('show'); }
+        }
+      }, 300);
+    }
+    lastTap = now;
+  });
+
+  like.addEventListener('click', () => toggleLike(slide));
+  slide.querySelector('.save').addEventListener('click', () => toggleSave(slide));
+}
+
+function spawnHeart(slide, x, y) {
+  const r = slide.getBoundingClientRect();
+  const h = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  h.setAttribute('viewBox', '0 0 24 24');
+  h.classList.add('bigheart');
+  h.innerHTML = ICONS.heart;
+  h.style.left = (x - r.left) + 'px';
+  h.style.top = (y - r.top) + 'px';
+  slide.appendChild(h);
+  setTimeout(() => h.remove(), 850);
+}
+
+// ---- mute ----
+const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
+function renderMute() { muteIcon.innerHTML = muted ? ICONS.soundOff : ICONS.soundOn; }
+renderMute();
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  feed.querySelectorAll('video').forEach(v => v.muted = muted);
+  renderMute();
+});
+
+// ---- keyboard ----
+document.addEventListener('keydown', e => {
+  if (filmPanel.classList.contains('open')) {
+    if (e.key === 'Escape') filmPanel.classList.remove('open');
+    return;
+  }
+  const h = window.innerHeight;
+  if (e.key === 'ArrowDown') feed.scrollBy({ top: h, behavior: 'smooth' });
+  if (e.key === 'ArrowUp') feed.scrollBy({ top: -h, behavior: 'smooth' });
+  if (e.key === 'm') muteBtn.click();
+  if (e.key === 'f') filmsBtn.click();
+  if (e.key === ' ') {
+    e.preventDefault();
+    const i = Math.round(feed.scrollTop / h);
+    const vid = feed.children[i]?.querySelector('video');
+    if (vid) vid.paused ? vid.play() : vid.pause();
+  }
+});
+
+// ---- start ----
+buildFeed();
+document.getElementById('start').addEventListener('click', () => {
+  document.getElementById('start').remove();
+  muted = false;
+  renderMute();
+  const first = feed.querySelector('video');
+  if (first) {
+    attachSrc(first);
+    first.muted = false;
+    first.play().catch(() => { muted = true; first.muted = true; renderMute(); first.play().catch(()=>{}); });
+  }
+});
+</script>
+</body>
+</html>

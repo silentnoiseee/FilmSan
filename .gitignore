@@ -1,0 +1,23 @@
+# Video files and clip folders — too large for git.
+# The app reads these at runtime; they live on disk, not in the repo.
+*.mp4
+*.MP4
+*.mkv
+*.MKV
+*.webm
+*.mov
+*.m4v
+*_clips/
+
+# NOTE: videos.js IS committed now — it holds only public Bunny HLS URLs
+# (no local paths, no secrets) and is what the deployed site loads.
+
+# Bunny Stream secrets + generated upload records (keep keys out of git)
+bunny_config.json
+bunny_uploads.json
+bunny_upload_errors.log
+
+# OS / editor junk
+.DS_Store
+Thumbs.db
+desktop.ini
