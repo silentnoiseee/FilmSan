@@ -363,8 +363,8 @@
     <div class="x" id="authClose">&times;</div>
     <h2 id="authTitle">Log in</h2>
     <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
-    <label>Email</label>
-    <input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Username</label>
+    <input id="authUser" autocomplete="username" placeholder="3–30 letters, numbers, _">
     <label>Password</label>
     <input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
     <button class="btn" id="authSubmit">Log in</button>
@@ -378,8 +378,8 @@
     <div class="x" id="profClose">&times;</div>
     <h2>Your profile</h2>
     <div class="sub" id="profEmail"></div>
-    <label>Username</label>
-    <input id="profUsername" maxlength="30" placeholder="username">
+    <label>Username (your login — can't be changed)</label>
+    <input id="profUsername" maxlength="30" placeholder="username" readonly style="opacity:.6;cursor:not-allowed;">
     <label>Display name</label>
     <input id="profDisplay" maxlength="50" placeholder="Display name">
     <label>Bio</label>
@@ -546,19 +546,30 @@ function renderAuthMode() {
 document.getElementById('authClose').onclick = () => authModal.classList.remove('open');
 document.getElementById('authSwitch').onclick = () => { authMode = authMode === 'login' ? 'signup' : 'login'; renderAuthMode(); };
 document.getElementById('authSubmit').onclick = submitAuth;
+// Usernames map to a synthetic email so Supabase Auth (which needs an email) works,
+// while users only ever see a username. Requires email confirmation to be OFF.
+const USER_EMAIL_DOMAIN = 'users.cinematicroll.com';
 async function submitAuth() {
-  const email = document.getElementById('authEmail').value.trim();
+  const username = document.getElementById('authUser').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
   const pass = document.getElementById('authPass').value;
   const msg = document.getElementById('authMsg');
   msg.className = 'msg'; msg.textContent = 'Working…';
-  if (!email || !pass) { msg.className = 'msg err'; msg.textContent = 'Enter email and password.'; return; }
+  if (username.length < 3 || username.length > 30) { msg.className = 'msg err'; msg.textContent = 'Username must be 3–30 letters, numbers, or _.'; return; }
+  if (pass.length < 6) { msg.className = 'msg err'; msg.textContent = 'Password must be at least 6 characters.'; return; }
+  const email = username + '@' + USER_EMAIL_DOMAIN;
   const res = authMode === 'signup'
     ? await sb.auth.signUp({ email, password: pass })
     : await sb.auth.signInWithPassword({ email, password: pass });
-  if (res.error) { msg.className = 'msg err'; msg.textContent = res.error.message; return; }
+  if (res.error) {
+    msg.className = 'msg err';
+    msg.textContent = /already registered|already exists/i.test(res.error.message) ? 'That username is taken.'
+      : /invalid login/i.test(res.error.message) ? 'Wrong username or password.'
+      : res.error.message;
+    return;
+  }
   if (authMode === 'signup' && !res.data.session) {
-    msg.className = 'msg ok';
-    msg.textContent = 'Account created — check your email to confirm, then log in.';
+    msg.className = 'msg err';
+    msg.textContent = 'Signups are blocked until "Confirm email" is turned OFF in Supabase.';
     return;
   }
   authModal.classList.remove('open');
@@ -568,7 +579,7 @@ async function submitAuth() {
 const profileModal = document.getElementById('profileModal');
 function openProfile() {
   if (!user) return openAuth('login');
-  document.getElementById('profEmail').textContent = user.email || '';
+  document.getElementById('profEmail').textContent = '@' + ((profile && profile.username) || '');
   document.getElementById('profUsername').value = (profile && profile.username) || '';
   document.getElementById('profDisplay').value = (profile && profile.display_name) || '';
   document.getElementById('profBio').value = (profile && profile.bio) || '';
@@ -581,10 +592,7 @@ document.getElementById('profLogout').onclick = async () => { await sb.auth.sign
 document.getElementById('profSave').onclick = async () => {
   const msg = document.getElementById('profMsg');
   msg.className = 'msg'; msg.textContent = 'Saving…';
-  const username = document.getElementById('profUsername').value.trim().toLowerCase();
-  if (username.length < 3) { msg.className = 'msg err'; msg.textContent = 'Username must be at least 3 characters.'; return; }
   const updates = {
-    username,
     display_name: document.getElementById('profDisplay').value.trim() || null,
     bio: document.getElementById('profBio').value.trim() || null,
     avatar_url: document.getElementById('profAvatar').value.trim() || null
@@ -592,7 +600,7 @@ document.getElementById('profSave').onclick = async () => {
   const { error } = await sb.from('profiles').update(updates).eq('id', user.id);
   if (error) {
     msg.className = 'msg err';
-    msg.textContent = /duplicate|unique/i.test(error.message) ? 'That username is taken.' : error.message;
+    msg.textContent = error.message;
     return;
   }
   profile = Object.assign(profile || { id: user.id }, updates);
