@@ -417,7 +417,7 @@ function attachSrc(vid) {
     if (vid.canPlayType('application/vnd.apple.mpegurl')) {
       vid.src = url;                                  // Safari / iOS native HLS
     } else if (HLS_OK) {
-      const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 12 });
+      const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 6, maxMaxBufferLength: 12, backBufferLength: 0 });
       hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) vid.dispatchEvent(new Event('error')); });
       hls.loadSource(url);
       hls.attachMedia(vid);
@@ -493,7 +493,7 @@ function refreshAccountBtn() {
 document.getElementById('accountBtn').addEventListener('click', () => {
   if (user) openProfile(); else openAuth('login');
 });
-console.log('FilmFeed build: accounts-v3');
+console.log('FilmFeed build: accounts-v7 (posters + next-clip prefetch)');
 
 // ---- like / save toggles ----
 async function toggleLike(slide) {
@@ -726,33 +726,17 @@ function selectFilm(f) {
   buildFeed();
 }
 
-// ---- build feed ----
-let observer, loader;
-function buildFeed() {
-  if (observer) observer.disconnect();
-  if (loader) loader.disconnect();
-  feed.innerHTML = '';
-  feed.scrollTop = 0;
+// ---- build feed (virtualized: only the nearby slides are "live") ----
+let observer, populator;
 
-  let list;
-  if (currentFilm) {
-    // single film: clips in chronological order
-    list = VIDEOS.filter(v => v.film === currentFilm.film && v.year === currentFilm.year)
-                 .sort((a, b) => a.start.localeCompare(b.start));
-  } else {
-    // all films: shuffled mix, no same film back-to-back
-    list = mixFeed(VIDEOS);
-  }
-
-  const frag = document.createDocumentFragment();
-  list.forEach((v, i) => {
-    const slide = document.createElement('div');
-    slide.className = 'slide';
-    slide.dataset.clipId = v.id || v.file;
-    const initial = (v.film || '?').replace(/[^a-zA-Z0-9]/g, '').charAt(0).toUpperCase() || 'F';
-    const caption = `${esc(v.film)} (${esc(v.year)}) &middot; ${esc(v.start)} &ndash; ${esc(v.end)}`;
-    slide.innerHTML = `
-      <video data-src="${srcAttr(v.file)}" loop playsinline muted preload="none"></video>
+function thumbUrl(v) {
+  return /playlist\.m3u8/.test(v.file) ? v.file.replace(/playlist\.m3u8.*$/, 'thumbnail.jpg') : '';
+}
+function slideMarkup(v) {
+  const initial = (v.film || '?').replace(/[^a-zA-Z0-9]/g, '').charAt(0).toUpperCase() || 'F';
+  const caption = `${esc(v.film)} (${esc(v.year)}) &middot; ${esc(v.start)} &ndash; ${esc(v.end)}`;
+  return `
+      <video data-src="${srcAttr(v.file)}" poster="${esc(thumbUrl(v))}" loop playsinline muted preload="none"></video>
       <div class="err">&#9888;&#65039; This clip couldn't be played in your browser<br>(${esc(v.film)} ${esc(v.year)})</div>
       <div class="pauseicon"><svg viewBox="0 0 24 24">${ICONS.play}</svg></div>
       <div class="rail">
@@ -768,42 +752,105 @@ function buildFeed() {
         <div class="desc">${caption} <span class="tags">${hashtag(v.film)} ${hashtag('film' + v.year)} #cinema</span></div>
         <div class="sound"><svg viewBox="0 0 24 24">${ICONS.music}</svg><span>original sound &mdash; ${esc(v.film)} (${esc(v.year)})</span></div>
       </div>
-      <div class="progress"><div class="track"><div class="fill"></div></div></div>
-    `;
-    wireSlide(slide);
+      <div class="progress"><div class="track"><div class="fill"></div></div></div>`;
+}
+
+// Fill an empty placeholder with real content (UI only). The video is NOT
+// loaded here — phones limit how many streams can load at once, so only the
+// active slide attaches its video (done in the play observer below).
+function populateSlide(slide) {
+  if (slide.dataset.pop === '1' || !slide._data) return;
+  slide.innerHTML = slideMarkup(slide._data);
+  slide.dataset.pop = '1';
+  wireSlide(slide);
+}
+// Strip a slide back to an empty placeholder and free its video.
+function depopulateSlide(slide) {
+  if (slide.dataset.pop !== '1') return;
+  const vid = slide.querySelector('video');
+  if (vid) detachSrc(vid);
+  slide.innerHTML = '';
+  slide.dataset.pop = '';
+}
+
+// Warm the NEXT clip's data in the HTTP cache (manifest + first segment) WITHOUT
+// opening a second video stream — so swiping starts fast and phones stay happy.
+const prefetched = new Set();
+async function prefetchClip(url) {
+  if (!url || prefetched.has(url) || !/playlist\.m3u8/.test(url)) return;
+  const c = navigator.connection;
+  if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return; // spare slow/metered data
+  prefetched.add(url);
+  try {
+    const master = await (await fetch(url)).text();
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+    const variantLine = master.split('\n').find(l => l.trim() && !l.startsWith('#'));
+    if (!variantLine) return;
+    const variantUrl = variantLine.startsWith('http') ? variantLine.trim() : base + variantLine.trim();
+    const variant = await (await fetch(variantUrl)).text();
+    const vbase = variantUrl.slice(0, variantUrl.lastIndexOf('/') + 1);
+    const segLine = variant.split('\n').find(l => l.trim() && !l.startsWith('#'));
+    if (segLine) {
+      const segUrl = segLine.startsWith('http') ? segLine.trim() : vbase + segLine.trim();
+      await fetch(segUrl); // warm the first segment in cache
+    }
+  } catch (e) { /* prefetch is best-effort */ }
+}
+
+function buildFeed() {
+  if (observer) observer.disconnect();
+  if (populator) populator.disconnect();
+  feed.innerHTML = '';
+  feed.scrollTop = 0;
+
+  let list;
+  if (currentFilm) {
+    // single film: clips in chronological order
+    list = VIDEOS.filter(v => v.film === currentFilm.film && v.year === currentFilm.year)
+                 .sort((a, b) => a.start.localeCompare(b.start));
+  } else {
+    // all films: shuffled mix, no same film back-to-back
+    list = mixFeed(VIDEOS);
+  }
+
+  // Lightweight empty placeholders (full-height snap targets). Real content and
+  // the <video> are injected only near the viewport, so the DOM stays tiny.
+  const frag = document.createDocumentFragment();
+  list.forEach(v => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.clipId = v.id || v.file;
+    slide._data = v;
     frag.appendChild(slide);
   });
   feed.appendChild(frag);
 
-  // Loader: attach/detach video src a couple of screens around the viewport
-  loader = new IntersectionObserver(entries => {
-    entries.forEach(e => {
-      const vid = e.target.querySelector('video');
-      if (e.isIntersecting) {
-        attachSrc(vid);
-      } else {
-        detachSrc(vid);
-      }
-    });
-  }, { rootMargin: '200% 0px' });
+  // Populate the current slide + immediate neighbours (~1 screen each way),
+  // and tear down the rest.
+  populator = new IntersectionObserver(entries => {
+    entries.forEach(e => e.isIntersecting ? populateSlide(e.target) : depopulateSlide(e.target));
+  }, { rootMargin: '110% 0px' });
 
-  // Player: play the slide that fills the screen
+  // Play whichever slide fills the screen; the previous one releases its video
+  // stream so the phone always has a free decoder for the next clip.
   observer = new IntersectionObserver(entries => {
     entries.forEach(e => {
       const vid = e.target.querySelector('video');
-      if (e.isIntersecting && e.intersectionRatio >= 0.6) {
-        attachSrc(vid);
-        vid.muted = muted;
-        vid.play().catch(() => {});
-        e.target.querySelector('.pauseicon').classList.remove('show');
-      } else {
+      if (e.isIntersecting && e.intersectionRatio >= 0.5) {
+        populateSlide(e.target);
+        const v = e.target.querySelector('video');
+        if (v) { attachSrc(v); v.muted = muted; v.play().catch(() => {}); }
+        e.target.querySelector('.pauseicon')?.classList.remove('show');
+        const next = e.target.nextElementSibling;          // warm the next clip's data
+        if (next && next._data) prefetchClip(next._data.file);
+      } else if (vid) {
         vid.pause();
-        if (loaded(vid)) vid.currentTime = 0;
+        detachSrc(vid);   // free the stream/decoder
       }
     });
-  }, { threshold: 0.6 });
+  }, { threshold: [0, 0.5, 1] });
 
-  feed.querySelectorAll('.slide').forEach(s => { loader.observe(s); observer.observe(s); });
+  feed.querySelectorAll('.slide').forEach(s => { populator.observe(s); observer.observe(s); });
 }
 
 // ---- per-slide interactions ----
@@ -827,21 +874,21 @@ function wireSlide(slide) {
     if (vid.duration) vid.currentTime = ((e.clientX - r.left) / r.width) * vid.duration;
   });
 
+  // Single tap toggles play/pause INSTANTLY (no 300ms wait). A quick second tap
+  // is treated as a like and resumes playback so it doesn't get left paused.
   let lastTap = 0;
   vid.addEventListener('click', e => {
     const now = Date.now();
-    if (now - lastTap < 300) {
+    const isDouble = now - lastTap < 300;
+    lastTap = now;
+    if (isDouble) {
       spawnHeart(slide, e.clientX, e.clientY);
       likeOn(slide);
-    } else {
-      setTimeout(() => {
-        if (Date.now() - lastTap >= 300) {
-          if (vid.paused) { vid.play(); pauseicon.classList.remove('show'); }
-          else { vid.pause(); pauseicon.classList.add('show'); }
-        }
-      }, 300);
+      if (vid.paused) { vid.play().catch(() => {}); pauseicon.classList.remove('show'); }
+      return;
     }
-    lastTap = now;
+    if (vid.paused) { vid.play().catch(() => {}); pauseicon.classList.remove('show'); }
+    else { vid.pause(); pauseicon.classList.add('show'); }
   });
 
   like.addEventListener('click', () => toggleLike(slide));
@@ -896,11 +943,15 @@ document.getElementById('start').addEventListener('click', () => {
   document.getElementById('start').remove();
   muted = false;
   renderMute();
-  const first = feed.querySelector('video');
-  if (first) {
-    attachSrc(first);
-    first.muted = false;
-    first.play().catch(() => { muted = true; first.muted = true; renderMute(); first.play().catch(()=>{}); });
+  const firstSlide = feed.querySelector('.slide');
+  if (firstSlide) {
+    populateSlide(firstSlide);
+    const vid = firstSlide.querySelector('video');
+    if (vid) {
+      attachSrc(vid);
+      vid.muted = false;
+      vid.play().catch(() => { muted = true; vid.muted = true; renderMute(); vid.play().catch(()=>{}); });
+    }
   }
 });
 </script>
