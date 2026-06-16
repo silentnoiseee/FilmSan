@@ -487,9 +487,13 @@ function applyUserState() {
 
 function refreshAccountBtn() {
   const b = document.getElementById('accountBtn');
-  if (user) { b.textContent = '@' + ((profile && profile.username) || 'me'); b.onclick = openProfile; }
-  else { b.textContent = 'Log in'; b.onclick = () => openAuth('login'); }
+  b.textContent = user ? '@' + ((profile && profile.username) || 'me') : 'Log in';
 }
+// Permanent click handler — the button works no matter what auth is doing.
+document.getElementById('accountBtn').addEventListener('click', () => {
+  if (user) openProfile(); else openAuth('login');
+});
+console.log('FilmFeed build: accounts-v3');
 
 // ---- like / save toggles ----
 async function toggleLike(slide) {
@@ -608,14 +612,24 @@ document.getElementById('profSave').onclick = async () => {
   refreshAccountBtn();
 };
 
-// React to login/logout (also fires once on load with the stored session)
-sb.auth.onAuthStateChange(async (_event, session) => {
+// React to login/logout. IMPORTANT: this callback must NOT be async or await
+// Supabase calls directly — doing so deadlocks the auth client. We wire the
+// button synchronously and defer data loading out of the auth lock.
+sb.auth.onAuthStateChange((_event, session) => {
   user = session?.user || null;
-  if (user) { await loadUserData(); }
-  else { profile = null; likedSet.clear(); savedSet.clear(); }
-  refreshAccountBtn();
-  applyUserState();
+  refreshAccountBtn();                 // keep the button clickable immediately
+  if (user) {
+    setTimeout(async () => {           // load profile/likes/saves outside the lock
+      await loadUserData();
+      refreshAccountBtn();
+      applyUserState();
+    }, 0);
+  } else {
+    profile = null; likedSet.clear(); savedSet.clear();
+    applyUserState();
+  }
 });
+refreshAccountBtn();                    // ensure a handler exists before auth resolves
 // ===================== END ACCOUNTS =====================
 
 // ---- helpers ----
