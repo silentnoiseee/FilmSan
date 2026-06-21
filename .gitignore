@@ -12,10 +12,15 @@
 # NOTE: videos.js IS committed now — it holds only public Bunny HLS URLs
 # (no local paths, no secrets) and is what the deployed site loads.
 
-# Bunny Stream secrets + generated upload records (keep keys out of git)
+# Bunny secrets (keep keys out of git)
 bunny_config.json
-bunny_uploads.json
 bunny_upload_errors.log
+# NOTE: bunny_uploads.json IS committed now — it's the canonical clip->GUID map
+# (no secrets). Keeping it in git means a re-sync never loses your upload record.
+
+# TMDB key (secret). films.json IS deployed — it's the public film catalog the
+# film pages read (only public TMDB data, no secrets).
+tmdb_config.json
 
 # OS / editor junk
 .DS_Store

@@ -1,0 +1,1262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FilmFeed</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; background: #000; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+
+  #feed {
+    height: 100dvh;
+    width: 100vw;
+    overflow-y: scroll;
+    scroll-snap-type: y mandatory;
+    scrollbar-width: none;
+  }
+  #feed::-webkit-scrollbar { display: none; }
+
+  .slide {
+    position: relative;
+    height: 100dvh;
+    width: 100vw;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    overflow: hidden;
+  }
+  .slide video {
+    height: 100%;
+    width: 100%;
+    object-fit: contain;
+    background: #000;
+  }
+  .slide .err {
+    position: absolute;
+    color: rgba(255,255,255,.6);
+    font-size: 14px;
+    text-align: center;
+    padding: 0 30px;
+    display: none;
+  }
+
+  /* ---- Top bar ---- */
+  .topbar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 30;
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    padding: 16px 0 10px;
+    color: rgba(255,255,255,.6);
+    font-size: 17px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5);
+    pointer-events: none;
+  }
+  .topbar .active {
+    color: #fff;
+    position: relative;
+  }
+  .topbar .active::after {
+    content: "";
+    position: absolute;
+    left: 50%; transform: translateX(-50%);
+    bottom: -7px;
+    width: 28px; height: 3px;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  /* ---- Films button + panel ---- */
+  #filmsBtn {
+    position: fixed;
+    top: 12px; left: 14px;
+    z-index: 50;
+    height: 38px;
+    padding: 0 14px;
+    border-radius: 19px;
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.25);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    max-width: 46vw;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  #filmPanel {
+    position: fixed; inset: 0;
+    z-index: 90;
+    background: rgba(0,0,0,.85);
+    backdrop-filter: blur(6px);
+    display: none;
+    flex-direction: column;
+    padding: 60px 20px 30px;
+    overflow-y: auto;
+  }
+  #filmPanel.open { display: flex; }
+  #filmPanel h2 { color: #fff; font-size: 20px; margin-bottom: 16px; }
+  #filmPanel .film {
+    color: #fff;
+    padding: 13px 14px;
+    border-radius: 10px;
+    font-size: 15px;
+    cursor: pointer;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  #filmPanel .film:hover, #filmPanel .film.sel { background: rgba(255,255,255,.12); }
+  #filmPanel .film .n { color: rgba(255,255,255,.45); font-size: 13px; }
+  #filmPanel .close {
+    position: fixed; top: 16px; right: 18px;
+    color: #fff; font-size: 26px; cursor: pointer;
+    width: 38px; height: 38px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ---- Right action rail ---- */
+  .rail {
+    position: absolute;
+    right: 10px;
+    bottom: 110px;
+    z-index: 20;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 22px;
+  }
+  .rail .action {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .rail .action svg {
+    width: 34px; height: 34px;
+    fill: #fff;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,.45));
+    transition: transform .12s ease;
+  }
+  .rail .action:active svg { transform: scale(.85); }
+  .rail .action .count {
+    font-size: 12px;
+    font-weight: 600;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .rail .action.liked svg { fill: #fe2c55; }
+
+  .poster {
+    width: 48px; height: 48px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    background: linear-gradient(135deg, #fe2c55, #25f4ee);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-weight: 800; font-size: 18px;
+    margin-bottom: 4px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.4);
+  }
+
+  .disc {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    background: radial-gradient(circle at center, #555 0 8px, #111 8px 18px, #333 18px);
+    border: 6px solid #1a1a1a;
+    animation: spin 4s linear infinite;
+    box-shadow: 0 1px 4px rgba(0,0,0,.5);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ---- Caption ---- */
+  .meta {
+    position: absolute;
+    left: 14px;
+    right: 80px;
+    bottom: 56px;
+    z-index: 20;
+    color: #fff;
+    text-shadow: 0 1px 3px rgba(0,0,0,.6);
+  }
+  .meta .handle { font-weight: 700; font-size: 16px; margin-bottom: 6px; }
+  .meta .desc { font-size: 14px; line-height: 1.45; }
+  .meta .tags { font-weight: 600; }
+  .meta .sound {
+    display: flex; align-items: center; gap: 7px;
+    margin-top: 9px; font-size: 13px;
+  }
+  .meta .sound svg { width: 14px; height: 14px; fill: #fff; flex-shrink: 0; }
+  .meta .sound span { white-space: nowrap; overflow: hidden; max-width: 230px; }
+
+  /* ---- Progress bar ---- */
+  .progress {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 26px;
+    z-index: 25;
+    display: flex;
+    align-items: flex-end;
+    cursor: pointer;
+  }
+  .progress .track {
+    width: 100%; height: 3px;
+    background: rgba(255,255,255,.25);
+    margin-bottom: 6px;
+    border-radius: 2px;
+  }
+  .progress .fill {
+    height: 100%; width: 0%;
+    background: #fff;
+    border-radius: 2px;
+  }
+
+  .pauseicon {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    z-index: 15;
+    width: 70px; height: 70px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+  }
+  .pauseicon.show { opacity: .85; }
+  .pauseicon svg { width: 100%; height: 100%; fill: #fff; filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
+
+  .bigheart {
+    position: absolute;
+    z-index: 40;
+    width: 90px; height: 90px;
+    pointer-events: none;
+    transform: translate(-50%,-50%) scale(0);
+    fill: #fe2c55;
+    filter: drop-shadow(0 2px 8px rgba(0,0,0,.4));
+    animation: pop .8s ease forwards;
+  }
+  @keyframes pop {
+    15% { transform: translate(-50%,-50%) scale(1.15) rotate(-8deg); opacity: 1; }
+    30% { transform: translate(-50%,-50%) scale(1) rotate(0); opacity: 1; }
+    80% { transform: translate(-50%,-58%) scale(1); opacity: 1; }
+    100% { transform: translate(-50%,-90%) scale(.6); opacity: 0; }
+  }
+
+  #muteBtn {
+    position: fixed;
+    top: 12px; right: 14px;
+    z-index: 50;
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    background: rgba(0,0,0,.45);
+    border: none;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+  }
+  #muteBtn svg { width: 20px; height: 20px; fill: #fff; }
+
+  #start {
+    position: fixed; inset: 0;
+    z-index: 100;
+    background: #000;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 14px;
+    color: #fff;
+    cursor: pointer;
+  }
+  #start h1 { font-size: 30px; font-weight: 800; letter-spacing: -.5px; }
+  #start h1 b { color: #fe2c55; }
+  #start p { color: rgba(255,255,255,.55); font-size: 14px; }
+
+  /* ---- Account button ---- */
+  #accountBtn {
+    position: fixed;
+    top: 12px; right: 60px;
+    z-index: 50;
+    width: 38px; height: 38px;
+    padding: 0;
+    border-radius: 50%;
+    background: rgba(0,0,0,.45);
+    border: 1px solid rgba(255,255,255,.35);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  #accountBtn img { width: 100%; height: 100%; object-fit: cover; }
+  #accountBtn svg { width: 20px; height: 20px; fill: #fff; }
+
+  /* ---- Save button state ---- */
+  .rail .action.save.saved svg { fill: #ffd60a; }
+
+  /* ---- Modals (auth + profile) ---- */
+  .modal {
+    position: fixed; inset: 0;
+    z-index: 120;
+    background: rgba(0,0,0,.8);
+    backdrop-filter: blur(6px);
+    display: none;
+    align-items: center; justify-content: center;
+    padding: 20px;
+  }
+  .modal.open { display: flex; }
+  .card {
+    position: relative;
+    background: #161616;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 16px;
+    padding: 24px;
+    width: 100%; max-width: 360px;
+    color: #fff;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .card h2 { font-size: 22px; margin-bottom: 4px; }
+  .card .sub { color: rgba(255,255,255,.5); font-size: 13px; margin-bottom: 14px; word-break: break-word; }
+  .card label { display: block; font-size: 12px; color: rgba(255,255,255,.6); margin: 12px 0 5px; }
+  .card input, .card textarea {
+    width: 100%;
+    background: #0e0e0e;
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 9px;
+    padding: 11px 12px;
+    color: #fff; font-size: 14px; font-family: inherit;
+  }
+  .card textarea { resize: vertical; min-height: 64px; }
+  .card .btn {
+    width: 100%; margin-top: 18px;
+    background: #fe2c55; color: #fff;
+    border: none; border-radius: 9px;
+    padding: 12px; font-size: 15px; font-weight: 700;
+    cursor: pointer;
+  }
+  .card .btn.secondary { background: rgba(255,255,255,.1); margin-top: 10px; }
+  .card .switch { margin-top: 14px; text-align: center; font-size: 13px; color: rgba(255,255,255,.55); }
+  .card .switch a { color: #25f4ee; cursor: pointer; font-weight: 600; }
+  .card .msg { margin-top: 12px; font-size: 13px; min-height: 16px; }
+  .card .msg.err { color: #ff6b6b; }
+  .card .msg.ok { color: #4cd964; }
+  .card .x { position: absolute; top: 12px; right: 16px; font-size: 26px; color: #fff; cursor: pointer; line-height: 1; }
+
+  /* ============================================================
+     CINEMATIC MINIMAL — design-system overhaul (layered overrides)
+     ============================================================ */
+  :root {
+    --fg: #fff;
+    --muted: rgba(255,255,255,.55);
+    --muted-2: rgba(255,255,255,.38);
+    --line: rgba(255,255,255,.14);
+    --glass: rgba(18,18,18,.5);
+    --like: #ff3b5c;
+    --save: #f5c451;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+    --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  }
+  body { -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; }
+
+  /* Skip rendering off-screen slides entirely (huge scroll win on mobile) */
+  .slide { content-visibility: auto; contain-intrinsic-size: 100vw 100dvh; }
+  #feed { overscroll-behavior-y: contain; }
+
+  /* Cinematic scrims for legibility over footage */
+  .slide::before, .slide::after { content: ""; position: absolute; left: 0; right: 0; z-index: 5; pointer-events: none; }
+  .slide::before { top: 0; height: 150px; background: linear-gradient(to bottom, rgba(0,0,0,.5), transparent); }
+  .slide::after { bottom: 0; height: 240px; background: linear-gradient(to top, rgba(0,0,0,.72), transparent); }
+  .slide .err { z-index: 6; }
+  .slide video { transition: opacity 320ms var(--ease-out); }
+  /* Poster layer: holds the first frame until the video actually plays */
+  .slide .frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; z-index: 2; transition: opacity 350ms var(--ease-out); }
+  .slide .frame.gone { opacity: 0; pointer-events: none; }
+
+  /* Top bar */
+  .topbar { gap: 22px; padding: 18px 0 10px; font-size: 15px; font-weight: 500; letter-spacing: .2px; color: var(--muted-2); }
+  .topbar .active { color: #fff; font-weight: 600; }
+  .topbar .active::after { bottom: -8px; width: 18px; height: 2px; background: #fff; }
+
+  /* Glass controls */
+  #homeBtn {
+    position: fixed; top: 14px; left: 14px; z-index: 50;
+    width: 36px; height: 36px; border-radius: 50%;
+    background: rgba(12,12,12,.66); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; text-decoration: none;
+    transition: transform 160ms var(--ease-out);
+  }
+  #homeBtn:active { transform: scale(.93); }
+  #homeBtn svg { width: 18px; height: 18px; fill: #fff; }
+  #filmsBtn {
+    top: 14px; left: 58px; height: 36px; padding: 0 15px; border-radius: 999px;
+    background: rgba(12,12,12,.66);
+    border: 1px solid var(--line); font-size: 12.5px; font-weight: 600; letter-spacing: .2px;
+    transition: transform 160ms var(--ease-out), background 160ms ease;
+  }
+  #filmsBtn:active { transform: scale(.96); }
+  .meta a.handle { display: inline-block; }
+  #muteBtn, #accountBtn {
+    top: 14px; width: 36px; height: 36px;
+    background: rgba(12,12,12,.66);
+    border: 1px solid var(--line);
+    transition: transform 160ms var(--ease-out);
+  }
+  #muteBtn { right: 14px; }
+  #accountBtn { right: 58px; }
+  #muteBtn:active, #accountBtn:active { transform: scale(.93); }
+
+  /* Action rail */
+  .rail { right: 12px; bottom: 92px; gap: 20px; }
+  .rail .action { gap: 5px; }
+  .rail .action svg { width: 30px; height: 30px; filter: drop-shadow(0 1px 4px rgba(0,0,0,.55)); transition: transform 200ms var(--ease-out); }
+  .rail .action:active svg { transform: scale(.82); }
+  .rail .action .count { font-size: 12px; font-weight: 600; letter-spacing: .2px; text-shadow: 0 1px 3px rgba(0,0,0,.7); font-variant-numeric: tabular-nums; }
+  .rail .action.like.liked svg { fill: var(--like); animation: likePop 320ms var(--ease-out); }
+  .rail .action.save.saved svg { fill: var(--save); }
+  @keyframes likePop { 0% { transform: scale(1); } 40% { transform: scale(1.28); } 100% { transform: scale(1); } }
+
+  .poster { width: 46px; height: 46px; border: 2px solid rgba(255,255,255,.9); background: linear-gradient(135deg, #3a3a3a, #161616); font-size: 17px; font-weight: 700; margin-bottom: 2px; box-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  .disc { width: 42px; height: 42px; background: radial-gradient(circle at center, #4a4a4a 0 6px, #0d0d0d 6px 15px, #2a2a2a 15px); border: 5px solid #141414; animation: spin 6s linear infinite; box-shadow: 0 2px 8px rgba(0,0,0,.6); }
+
+  /* Caption */
+  .meta { left: 16px; right: 84px; bottom: 46px; }
+  .meta .handle { font-weight: 600; font-size: 16px; letter-spacing: .2px; margin-bottom: 7px; text-shadow: 0 1px 4px rgba(0,0,0,.65); }
+  .meta .desc { font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.92); text-shadow: 0 1px 4px rgba(0,0,0,.65); }
+  .meta .tags { color: rgba(255,255,255,.62); font-weight: 500; }
+  .meta .sound { gap: 8px; margin-top: 11px; font-size: 12.5px; color: rgba(255,255,255,.82); }
+  .meta .sound span { text-overflow: ellipsis; }
+
+  /* Progress bar */
+  .progress .track { height: 2.5px; background: rgba(255,255,255,.22); margin-bottom: 5px; border-radius: 0; }
+  .progress .fill { background: #fff; border-radius: 0; }
+
+  /* Pause icon scales in */
+  .pauseicon { width: 64px; height: 64px; transform: translate(-50%,-50%) scale(.8); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+  .pauseicon.show { opacity: .92; transform: translate(-50%,-50%) scale(1); }
+  .bigheart { fill: var(--like); }
+
+  /* Start screen */
+  #start {
+    gap: 0; text-align: center; padding: 24px;
+    background: radial-gradient(125% 85% at 50% 38%, #181818 0%, #000 68%);
+    transition: opacity 500ms var(--ease-out);
+  }
+  #start.hide { opacity: 0; pointer-events: none; }
+  #start .mark { font-size: 12px; letter-spacing: .45em; text-transform: uppercase; color: var(--muted); margin-bottom: 20px; padding-left: .45em; animation: rise 700ms var(--ease-out) both; }
+  #start h1 { font-size: clamp(36px, 12vw, 56px); font-weight: 300; letter-spacing: -1.5px; line-height: 1; animation: rise 700ms var(--ease-out) 80ms both; }
+  #start h1 b { font-weight: 800; color: #fff; }
+  #start #startInfo { margin-top: 18px; color: var(--muted); font-size: 13px; letter-spacing: .3px; animation: rise 700ms var(--ease-out) 160ms both; }
+  #start .begin { margin-top: 44px; font-size: 11px; letter-spacing: .28em; text-transform: uppercase; color: rgba(255,255,255,.5); display: flex; align-items: center; gap: 10px; animation: rise 700ms var(--ease-out) 240ms both; }
+  #start .begin::before, #start .begin::after { content: ""; width: 22px; height: 1px; background: rgba(255,255,255,.25); }
+  @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+  /* Account button — refined gradient handled by JS */
+  #accountBtn { font-size: 15px; font-weight: 700; }
+
+  /* Modals — animated, cinematic */
+  .modal {
+    display: flex; background: rgba(0,0,0,.6);
+    opacity: 0; visibility: hidden;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    transition: opacity 220ms var(--ease-out), visibility 220ms;
+  }
+  /* Blur only while open — a hidden full-screen backdrop-filter kills scroll perf */
+  .modal.open { display: flex; opacity: 1; visibility: visible; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .card {
+    background: #0e0e0e; border: 1px solid rgba(255,255,255,.1); border-radius: 20px;
+    padding: 28px 24px; box-shadow: 0 30px 80px rgba(0,0,0,.6);
+    transform: scale(.95) translateY(8px); opacity: 0;
+    transition: transform 260ms var(--ease-out), opacity 220ms var(--ease-out);
+  }
+  .modal.open .card { transform: none; opacity: 1; }
+  .card h2 { font-size: 23px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 5px; }
+  .card .sub { color: var(--muted); margin-bottom: 16px; }
+  .card label { font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: var(--muted-2); margin: 14px 0 6px; }
+  .card input, .card textarea { background: #1a1a1a; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; padding: 12px 13px; transition: border-color 160ms ease, background 160ms ease; }
+  .card input:focus, .card textarea:focus { outline: none; border-color: rgba(255,255,255,.5); background: #202020; }
+  .card .btn { margin-top: 20px; background: #fff; color: #000; border-radius: 11px; padding: 13px; font-weight: 700; transition: transform 140ms var(--ease-out), opacity 160ms ease; }
+  .card .btn:active { transform: scale(.97); }
+  .card .btn.secondary { background: rgba(255,255,255,.08); color: #fff; }
+  .card .switch { margin-top: 16px; color: var(--muted); }
+  .card .switch a { color: #fff; border-bottom: 1px solid rgba(255,255,255,.3); }
+  .card .x { top: 14px; right: 16px; font-size: 24px; color: var(--muted); width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; transition: background 160ms ease, color 160ms ease, transform 140ms var(--ease-out); }
+  .card .x:active { transform: scale(.9); }
+
+  /* Film picker — animated drawer with staggered rows */
+  #filmPanel {
+    display: flex; padding: 64px 18px 30px;
+    background: rgba(0,0,0,.92);
+    opacity: 0; visibility: hidden; transform: translateY(14px);
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    transition: opacity 280ms var(--ease-drawer), transform 280ms var(--ease-drawer), visibility 280ms;
+  }
+  #filmPanel.open { display: flex; opacity: 1; visibility: visible; transform: none; backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+  #filmPanel h2 { font-size: 12px; letter-spacing: .4px; text-transform: uppercase; color: var(--muted); margin: 0 6px 14px; }
+  #filmPanel .film { padding: 14px; border-radius: 12px; align-items: center; transition: background 160ms ease; }
+  #filmPanel .film.sel { background: rgba(255,255,255,.1); }
+  #filmPanel .film .n { color: var(--muted-2); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+  #filmPanel .close { background: rgba(255,255,255,.1); border: 1px solid var(--line); border-radius: 50%; transition: transform 160ms var(--ease-out); }
+  #filmPanel .close:active { transform: scale(.92); }
+  #filmPanel.open .film { animation: rise 380ms var(--ease-out) both; }
+  #filmPanel.open .film:nth-child(1) { animation-delay: .02s; }
+  #filmPanel.open .film:nth-child(2) { animation-delay: .045s; }
+  #filmPanel.open .film:nth-child(3) { animation-delay: .07s; }
+  #filmPanel.open .film:nth-child(4) { animation-delay: .095s; }
+  #filmPanel.open .film:nth-child(5) { animation-delay: .12s; }
+  #filmPanel.open .film:nth-child(6) { animation-delay: .145s; }
+  #filmPanel.open .film:nth-child(7) { animation-delay: .17s; }
+  #filmPanel.open .film:nth-child(8) { animation-delay: .195s; }
+  #filmPanel.open .film:nth-child(9) { animation-delay: .22s; }
+  #filmPanel.open .film:nth-child(n+10) { animation-delay: .245s; }
+
+  /* Hover only on real pointers (avoid sticky states on touch) */
+  @media (hover: hover) and (pointer: fine) {
+    #filmsBtn:hover { background: rgba(34,34,34,.6); }
+    #filmPanel .film:hover { background: rgba(255,255,255,.07); }
+    .card .x:hover { background: rgba(255,255,255,.1); color: #fff; }
+    .card .btn:hover { opacity: .92; }
+  }
+
+  /* Respect reduced-motion preferences */
+  @media (prefers-reduced-motion: reduce) {
+    .disc { animation: none; }
+    #start .mark, #start h1, #start #startInfo, #start .begin,
+    #filmPanel.open .film { animation: none; opacity: 1; transform: none; }
+    *, .modal, .card, #filmPanel { transition-duration: .01ms !important; }
+  }
+
+  /* ===== Feed caption — refined (Emil) ===== */
+  .meta .filmlink {
+    display: inline-flex; align-items: baseline; gap: 9px;
+    color: #fff; text-decoration: none; font-weight: 600; font-size: 19px; letter-spacing: .2px;
+    position: relative; text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
+  .meta .filmlink .yr { font-weight: 400; font-size: 14px; color: rgba(255,255,255,.6); }
+  .meta .filmlink .chev { font-size: 17px; color: rgba(255,255,255,.55); transition: transform 220ms var(--ease-out), color 220ms ease; }
+  .meta .filmlink .ft { position: relative; }
+  .meta .filmlink .ft::after {
+    content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 1.5px; background: #fff;
+    transform: scaleX(0); transform-origin: left; transition: transform 280ms var(--ease-out);
+  }
+  .meta .desc {
+    margin-top: 9px; font-size: 13.5px; line-height: 1.5; color: rgba(255,255,255,.9);
+    text-shadow: 0 1px 4px rgba(0,0,0,.6);
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; max-width: 92%;
+  }
+  .meta .cast { margin-top: 0; overflow: hidden; max-height: 0; opacity: 0;
+    transition: max-height 320ms var(--ease-out), opacity 240ms var(--ease-out), margin-top 320ms var(--ease-out); }
+  .meta .cast .castlbl { display: block; font-size: 10px; letter-spacing: .28em; text-transform: uppercase; color: rgba(255,255,255,.45); margin-bottom: 6px; }
+  .meta .cast .castnames { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; color: rgba(255,255,255,.85); text-shadow: 0 1px 4px rgba(0,0,0,.6); }
+  .meta .cast .castnames span { opacity: 0; transform: translateY(6px); transition: opacity 260ms var(--ease-out), transform 260ms var(--ease-out); }
+
+  @media (hover: hover) and (pointer: fine) {
+    .meta .filmlink:hover .ft::after { transform: scaleX(1); }
+    .meta .filmlink:hover .chev { transform: translateX(4px); color: #fff; }
+    .slide:hover .meta .cast, .meta:hover .cast { max-height: 132px; opacity: 1; margin-top: 11px; }
+    .slide:hover .meta .cast .castnames span, .meta:hover .cast .castnames span { opacity: 1; transform: none; transition-delay: calc(var(--i) * 45ms); }
+  }
+  @media (hover: none) {
+    .meta .cast { max-height: 132px; opacity: 1; margin-top: 11px; }
+    .meta .cast .castnames span { opacity: 1; transform: none; }
+  }
+
+  /* ===== Rail — clean outline icons + hover slide-out labels ===== */
+  .rail { gap: 22px; }
+  .rail .avatar {
+    width: 46px; height: 46px; border-radius: 50%;
+    background: #2c2c2c; border: 2px solid rgba(255,255,255,.85);
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 2px; box-shadow: 0 2px 8px rgba(0,0,0,.5);
+  }
+  .rail .avatar svg { width: 30px; height: 30px; fill: #d2d2d2; stroke: none; }
+  .rail .action { position: relative; }
+  .rail .action svg {
+    width: 29px; height: 29px;
+    fill: none; stroke: #fff; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 1px 4px rgba(0,0,0,.55));
+    transition: transform 200ms var(--ease-out);
+  }
+  .rail .action:active svg { transform: scale(.85); }
+  .rail .action.like.liked svg { fill: var(--like); stroke: var(--like); animation: likePop 320ms var(--ease-out); }
+  .rail .action.save.saved svg { fill: var(--save); stroke: var(--save); }
+  .rail .action .count { margin-top: 5px; }
+  .rail .action .label {
+    position: absolute; right: 42px; top: 14px; transform: translateY(-50%) translateX(8px);
+    background: rgba(20,20,20,.9); color: #fff; font-size: 12px; font-weight: 600; letter-spacing: .2px;
+    padding: 6px 11px; border-radius: 9px; white-space: nowrap;
+    box-shadow: 0 2px 10px rgba(0,0,0,.45); opacity: 0; pointer-events: none;
+    transition: opacity 200ms var(--ease-out), transform 220ms var(--ease-out);
+  }
+  @media (hover: hover) and (pointer: fine) {
+    .rail .action:hover .label { opacity: 1; transform: translateY(-50%) translateX(0); }
+  }
+  @media (hover: none) { .rail .action .label { display: none; } }
+</style>
+</head>
+<body>
+
+<div id="start">
+  <div class="mark">Curated Cinema</div>
+  <h1>Film<b>Feed</b></h1>
+  <p id="startInfo">Loading…</p>
+  <div class="begin">Tap to begin</div>
+</div>
+
+<div class="topbar"><span>Following</span><span class="active">For You</span></div>
+
+<a id="homeBtn" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M12 3.2 3 11h2.2v9.8h5.1v-6h3.4v6h5.1V11H21z"/></svg></a>
+<button id="muteBtn" title="Mute / unmute"><svg id="muteIcon" viewBox="0 0 24 24"></svg></button>
+<button id="accountBtn">Log in</button>
+
+<div class="modal" id="authModal">
+  <div class="card">
+    <div class="x" id="authClose">&times;</div>
+    <h2 id="authTitle">Log in</h2>
+    <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
+    <label>Username</label>
+    <input id="authUser" autocomplete="username" placeholder="3–30 letters, numbers, _">
+    <label>Password</label>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    <button class="btn" id="authSubmit">Log in</button>
+    <div class="msg" id="authMsg"></div>
+    <div class="switch" id="authSwitch">New here? <a>Create an account</a></div>
+  </div>
+</div>
+
+<div class="modal" id="profileModal">
+  <div class="card">
+    <div class="x" id="profClose">&times;</div>
+    <h2>Your profile</h2>
+    <div class="sub" id="profEmail"></div>
+    <label>Username (your login — can't be changed)</label>
+    <input id="profUsername" maxlength="30" placeholder="username" readonly style="opacity:.6;cursor:not-allowed;">
+    <label>Display name</label>
+    <input id="profDisplay" maxlength="50" placeholder="Display name">
+    <label>Bio</label>
+    <textarea id="profBio" maxlength="300" placeholder="A little about you…"></textarea>
+    <label>Avatar image URL (optional)</label>
+    <input id="profAvatar" placeholder="https://…">
+    <button class="btn" id="profSave">Save changes</button>
+    <div class="msg" id="profMsg"></div>
+    <button class="btn secondary" id="profLogout">Log out</button>
+  </div>
+</div>
+
+<div id="filmPanel">
+  <div class="close" id="panelClose">&times;</div>
+  <h2>Films</h2>
+  <div id="filmList"></div>
+</div>
+
+<div id="feed"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="videos.js"></script>
+<script>
+// ---- HLS source attach/detach ----
+// Clips stream from Bunny as .m3u8 (adaptive bitrate). Safari plays HLS
+// natively; Chrome/Firefox/Edge need hls.js. We attach on demand and
+// destroy the hls.js instance on unload so ~1,900 clips stay memory-safe.
+const HLS_OK = window.Hls && Hls.isSupported();
+function loaded(vid) { return vid.dataset.loaded === '1'; }
+function attachSrc(vid) {
+  if (loaded(vid)) return;
+  const url = vid.dataset.src;
+  if (/\.m3u8($|\?)/i.test(url)) {
+    if (HLS_OK) {
+      // Chrome/Firefox/Edge/Android: use hls.js. (These can't truly play HLS
+      // natively even though canPlayType may falsely report "maybe".)
+      const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 6, maxMaxBufferLength: 12, backBufferLength: 0 });
+      hls.on(Hls.Events.ERROR, (e, d) => { if (d.fatal) vid.dispatchEvent(new Event('error')); });
+      hls.loadSource(url);
+      hls.attachMedia(vid);
+      vid._hls = hls;
+    } else if (vid.canPlayType('application/vnd.apple.mpegurl')) {
+      vid.src = url;                                  // Safari / iOS native HLS (no MSE)
+    } else {
+      vid.src = url;                                  // last-resort fallback
+    }
+  } else {
+    vid.src = url;                                    // plain mp4 (local mode)
+  }
+  vid.dataset.loaded = '1';
+}
+function detachSrc(vid) {
+  if (!loaded(vid)) return;
+  vid.pause();
+  if (vid._hls) { vid._hls.destroy(); vid._hls = null; }
+  vid.removeAttribute('src');
+  vid.load();
+  vid.dataset.loaded = '';
+}
+
+const ICONS = {
+  heart: '<path d="M12 21s-7.5-4.9-10-9.2C.6 9.1 2 5 6 5c2.2 0 3.5 1.2 4.3 2.4l1.7 2.3 1.7-2.3C14.5 6.2 15.8 5 18 5c4 0 5.4 4.1 4 6.8C19.5 16.1 12 21 12 21z"/>',
+  comment: '<path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>',
+  share: '<path d="M22 2 11 13"/><path d="M22 2 15 22 11 13 2 9z"/>',
+  bookmark: '<path d="M6 2h12a1 1 0 0 1 1 1v18l-7-4-7 4V3a1 1 0 0 1 1-1z"/>',
+  person: '<path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/>',
+  play: '<path d="M8 5v14l11-7z"/>',
+  music: '<path d="M9 3v10.6A3.5 3.5 0 1 0 11 17V7h6V3H9z"/>',
+  soundOn: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1c2.9.9 5 3.6 5 6.7s-2.1 5.8-5 6.7v2.1c4-1 7-4.6 7-8.8s-3-7.8-7-8.8z"/>',
+  soundOff: '<path d="M3 9v6h4l5 5V4L7 9H3zm13.6 3l2.7-2.7-1.4-1.4-2.7 2.7-2.7-2.7-1.4 1.4 2.7 2.7-2.7 2.7 1.4 1.4 2.7-2.7 2.7 2.7 1.4-1.4-2.7-2.7z"/>'
+};
+
+const feed = document.getElementById('feed');
+let muted = true;
+let currentFilm = null;   // null = all films, mixed
+
+// ===================== ACCOUNTS (Supabase) =====================
+const SB_URL = 'https://dykfcvjdfuvsonswojgd.supabase.co';
+const SB_KEY = 'sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz'; // publishable key — safe in frontend, protected by RLS
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+
+let user = null;
+let profile = null;
+const likedSet = new Set();   // clip ids the user has liked
+const savedSet = new Set();   // clip ids the user has saved
+
+async function loadUserData() {
+  if (!user) return;
+  const [{ data: prof }, { data: likes }, { data: saves }] = await Promise.all([
+    sb.from('profiles').select('*').eq('id', user.id).maybeSingle(),
+    sb.from('likes').select('clip_id').eq('user_id', user.id),
+    sb.from('saved_clips').select('clip_id').eq('user_id', user.id)
+  ]);
+  profile = prof || null;
+  likedSet.clear(); (likes || []).forEach(r => likedSet.add(r.clip_id));
+  savedSet.clear(); (saves || []).forEach(r => savedSet.add(r.clip_id));
+}
+
+// Reflect liked/saved state onto slides already in the DOM
+function applyUserState() {
+  document.querySelectorAll('.slide').forEach(s => {
+    const id = s.dataset.clipId;
+    s.querySelector('.like')?.classList.toggle('liked', likedSet.has(id));
+    s.querySelector('.save')?.classList.toggle('saved', savedSet.has(id));
+  });
+}
+
+function refreshAccountBtn() {
+  const b = document.getElementById('accountBtn');
+  const avatar = user && profile && profile.avatar_url;
+  if (avatar) { b.innerHTML = `<img src="${esc(avatar)}" alt="">`; b.style.background = 'rgba(0,0,0,.45)'; }
+  else { b.innerHTML = `<svg viewBox="0 0 24 24">${ICONS.person}</svg>`; b.style.background = '#b9bdc2'; }
+  b.title = user ? 'Your profile' : 'Log in';
+}
+// Permanent click handler — the button works no matter what auth is doing.
+document.getElementById('accountBtn').addEventListener('click', () => {
+  if (user) location.href = 'profile.html'; else openAuth('login');
+});
+console.log('FilmFeed build: accounts-v17 (removed all-films button)');
+
+// ---- like / save toggles ----
+async function toggleLike(slide) {
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.like');
+  if (el.classList.contains('liked')) {
+    el.classList.remove('liked'); likedSet.delete(id);
+    await sb.from('likes').delete().eq('user_id', user.id).eq('clip_id', id);
+  } else {
+    el.classList.add('liked'); likedSet.add(id);
+    await sb.from('likes').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+async function likeOn(slide) {           // used by double-tap (never unlikes)
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.like');
+  if (!el.classList.contains('liked')) {
+    el.classList.add('liked'); likedSet.add(id);
+    await sb.from('likes').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+async function toggleSave(slide) {
+  if (!user) return openAuth('login');
+  const id = slide.dataset.clipId;
+  const el = slide.querySelector('.save');
+  if (el.classList.contains('saved')) {
+    el.classList.remove('saved'); savedSet.delete(id);
+    await sb.from('saved_clips').delete().eq('user_id', user.id).eq('clip_id', id);
+  } else {
+    el.classList.add('saved'); savedSet.add(id);
+    await sb.from('saved_clips').upsert({ user_id: user.id, clip_id: id });
+  }
+}
+
+// ---- auth modal ----
+let authMode = 'login';
+const authModal = document.getElementById('authModal');
+function openAuth(mode) {
+  authMode = mode || 'login';
+  renderAuthMode();
+  document.getElementById('authMsg').textContent = '';
+  authModal.classList.add('open');
+}
+function renderAuthMode() {
+  const login = authMode === 'login';
+  document.getElementById('authTitle').textContent = login ? 'Log in' : 'Create account';
+  document.getElementById('authSub').textContent = login ? 'Welcome back to FilmFeed.' : 'Join FilmFeed to like and save clips.';
+  document.getElementById('authSubmit').textContent = login ? 'Log in' : 'Sign up';
+  document.getElementById('authSwitch').innerHTML = login ? 'New here? <a>Create an account</a>' : 'Have an account? <a>Log in</a>';
+  document.getElementById('authPass').autocomplete = login ? 'current-password' : 'new-password';
+}
+document.getElementById('authClose').onclick = () => authModal.classList.remove('open');
+document.getElementById('authSwitch').onclick = () => { authMode = authMode === 'login' ? 'signup' : 'login'; renderAuthMode(); };
+document.getElementById('authSubmit').onclick = submitAuth;
+// Usernames map to a synthetic email so Supabase Auth (which needs an email) works,
+// while users only ever see a username. Requires email confirmation to be OFF.
+const USER_EMAIL_DOMAIN = 'users.cinematicroll.com';
+async function submitAuth() {
+  const username = document.getElementById('authUser').value.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const pass = document.getElementById('authPass').value;
+  const msg = document.getElementById('authMsg');
+  msg.className = 'msg'; msg.textContent = 'Working…';
+  if (username.length < 3 || username.length > 30) { msg.className = 'msg err'; msg.textContent = 'Username must be 3–30 letters, numbers, or _.'; return; }
+  if (pass.length < 6) { msg.className = 'msg err'; msg.textContent = 'Password must be at least 6 characters.'; return; }
+  const email = username + '@' + USER_EMAIL_DOMAIN;
+  const res = authMode === 'signup'
+    ? await sb.auth.signUp({ email, password: pass })
+    : await sb.auth.signInWithPassword({ email, password: pass });
+  if (res.error) {
+    msg.className = 'msg err';
+    msg.textContent = /already registered|already exists/i.test(res.error.message) ? 'That username is taken.'
+      : /invalid login/i.test(res.error.message) ? 'Wrong username or password.'
+      : res.error.message;
+    return;
+  }
+  if (authMode === 'signup' && !res.data.session) {
+    msg.className = 'msg err';
+    msg.textContent = 'Signups are blocked until "Confirm email" is turned OFF in Supabase.';
+    return;
+  }
+  authModal.classList.remove('open');
+}
+
+// ---- profile modal ----
+const profileModal = document.getElementById('profileModal');
+function openProfile() {
+  if (!user) return openAuth('login');
+  document.getElementById('profEmail').textContent = '@' + ((profile && profile.username) || '');
+  document.getElementById('profUsername').value = (profile && profile.username) || '';
+  document.getElementById('profDisplay').value = (profile && profile.display_name) || '';
+  document.getElementById('profBio').value = (profile && profile.bio) || '';
+  document.getElementById('profAvatar').value = (profile && profile.avatar_url) || '';
+  document.getElementById('profMsg').textContent = '';
+  profileModal.classList.add('open');
+}
+document.getElementById('profClose').onclick = () => profileModal.classList.remove('open');
+document.getElementById('profLogout').onclick = async () => { await sb.auth.signOut(); profileModal.classList.remove('open'); };
+document.getElementById('profSave').onclick = async () => {
+  const msg = document.getElementById('profMsg');
+  msg.className = 'msg'; msg.textContent = 'Saving…';
+  const updates = {
+    display_name: document.getElementById('profDisplay').value.trim() || null,
+    bio: document.getElementById('profBio').value.trim() || null,
+    avatar_url: document.getElementById('profAvatar').value.trim() || null
+  };
+  const { error } = await sb.from('profiles').update(updates).eq('id', user.id);
+  if (error) {
+    msg.className = 'msg err';
+    msg.textContent = error.message;
+    return;
+  }
+  profile = Object.assign(profile || { id: user.id }, updates);
+  msg.className = 'msg ok'; msg.textContent = 'Saved!';
+  refreshAccountBtn();
+};
+
+// React to login/logout. IMPORTANT: this callback must NOT be async or await
+// Supabase calls directly — doing so deadlocks the auth client. We wire the
+// button synchronously and defer data loading out of the auth lock.
+sb.auth.onAuthStateChange((_event, session) => {
+  user = session?.user || null;
+  refreshAccountBtn();                 // keep the button clickable immediately
+  if (user) {
+    setTimeout(async () => {           // load profile/likes/saves outside the lock
+      await loadUserData();
+      refreshAccountBtn();
+      applyUserState();
+    }, 0);
+  } else {
+    profile = null; likedSet.clear(); savedSet.clear();
+    applyUserState();
+  }
+});
+refreshAccountBtn();                    // ensure a handler exists before auth resolves
+// ===================== END ACCOUNTS =====================
+
+// ---- helpers ----
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+function encPath(p) {
+  return p.split('/').map(encodeURIComponent).join('/');
+}
+// Full http(s) URLs (Bunny HLS) pass through; local relative paths get encoded.
+function srcAttr(p) {
+  return /^https?:/i.test(p) ? esc(p) : encPath(p);
+}
+function rand(a, b) {
+  const n = Math.floor(Math.random() * (b - a) + a);
+  return n > 1000 ? (n / 1000).toFixed(1) + 'K' : n;
+}
+function hashtag(s) {
+  return '#' + s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// Shuffle that avoids showing the same film twice in a row
+// (only allowed when a single film is all that's left).
+function mixFeed(videos) {
+  // bucket clips per film, shuffle within each bucket
+  const buckets = new Map();
+  videos.forEach(v => {
+    const k = v.film + '|' + v.year;
+    if (!buckets.has(k)) buckets.set(k, []);
+    buckets.get(k).push(v);
+  });
+  const queues = [...buckets.values()].map(shuffle);
+
+  const out = [];
+  let prev = -1;
+  while (queues.some(q => q.length)) {
+    // candidates: non-empty queues, excluding the film we just played
+    let pool = [];
+    queues.forEach((q, i) => { if (q.length && i !== prev) pool.push(i); });
+    if (!pool.length) {
+      // only the previous film remains — no choice
+      pool = queues.map((q, i) => q.length ? i : -1).filter(i => i >= 0);
+    }
+    // weight by remaining clips so big films don't pile up at the end
+    const total = pool.reduce((s, i) => s + queues[i].length, 0);
+    let r = Math.random() * total, pick = pool[0];
+    for (const i of pool) { r -= queues[i].length; if (r <= 0) { pick = i; break; } }
+    out.push(queues[pick].pop());
+    prev = pick;
+  }
+  return out;
+}
+
+// ---- films index ----
+const FILMS = [...new Map(VIDEOS.map(v => [v.film + '|' + v.year, { film: v.film, year: v.year }])).values()]
+  .sort((a, b) => a.film.localeCompare(b.film));
+document.getElementById('startInfo').textContent =
+  `${VIDEOS.length} clips · ${FILMS.length} films · tap to start`;
+
+// ---- film picker panel ----
+const filmPanel = document.getElementById('filmPanel');
+const filmList = document.getElementById('filmList');
+const filmsBtn = document.getElementById('filmsBtn');
+function buildPanel() {
+  filmList.innerHTML = '';
+  const all = document.createElement('div');
+  all.className = 'film' + (currentFilm === null ? ' sel' : '');
+  all.innerHTML = `<span>&#127922; All films (shuffled)</span><span class="n">${VIDEOS.length} clips</span>`;
+  all.onclick = () => selectFilm(null);
+  filmList.appendChild(all);
+  FILMS.forEach(f => {
+    const n = VIDEOS.filter(v => v.film === f.film && v.year === f.year).length;
+    const d = document.createElement('div');
+    d.className = 'film' + (currentFilm && currentFilm.film === f.film ? ' sel' : '');
+    d.innerHTML = `<span>${esc(f.film)} <span class="n">(${esc(f.year)})</span></span><span class="n">${n} clips</span>`;
+    d.onclick = () => selectFilm(f);
+    filmList.appendChild(d);
+  });
+}
+if (filmsBtn) filmsBtn.onclick = () => { buildPanel(); filmPanel.classList.add('open'); };
+document.getElementById('panelClose').onclick = () => filmPanel.classList.remove('open');
+function selectFilm(f) {
+  currentFilm = f;
+  filmPanel.classList.remove('open');
+  if (filmsBtn) filmsBtn.innerHTML = '&#127902; ' + esc(f ? `${f.film} (${f.year})` : 'All films');
+  buildFeed();
+}
+
+// ---- build feed (virtualized: only the nearby slides are "live") ----
+let observer;
+let activeSlide = null;
+const liveSlides = new Set();
+
+function thumbUrl(v) {
+  return /playlist\.m3u8/.test(v.file) ? v.file.replace(/playlist\.m3u8.*$/, 'thumbnail.jpg') : '';
+}
+function filmSlug(v) {
+  return String(v.film).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + v.year;
+}
+
+// Film catalog (cast, synopsis) for richer captions — loaded once from films.json.
+let FILMDATA = {};
+function filmInfo(v) { return FILMDATA[filmSlug(v)] || null; }
+function metaDesc(v) {
+  const fi = filmInfo(v);
+  return (fi && fi.overview) ? esc(fi.overview) : (esc(v.start) + ' &ndash; ' + esc(v.end));
+}
+function castBlock(v) {
+  const fi = filmInfo(v);
+  if (!fi || !fi.cast_list || !fi.cast_list.length) return '';
+  const names = fi.cast_list.slice(0, 6).map((c, i) => `<span style="--i:${i}">${esc(c.name)}</span>`).join('');
+  return `<span class="castlbl">Cast</span><span class="castnames">${names}</span>`;
+}
+function refreshMeta(slide) {
+  const v = slide._data; if (!v) return;
+  const d = slide.querySelector('.desc'); if (d) d.innerHTML = metaDesc(v);
+  const c = slide.querySelector('.cast'); if (c) c.innerHTML = castBlock(v);
+}
+fetch('films.json').then(r => r.json()).then(arr => {
+  arr.forEach(f => { FILMDATA[f.slug] = f; });
+  document.querySelectorAll('.slide[data-pop="1"]').forEach(refreshMeta);
+}).catch(() => {});
+function slideMarkup(v) {
+  const initial = (v.film || '?').replace(/[^a-zA-Z0-9]/g, '').charAt(0).toUpperCase() || 'F';
+  const caption = `${esc(v.film)} (${esc(v.year)}) &middot; ${esc(v.start)} &ndash; ${esc(v.end)}`;
+  return `
+      <video data-src="${srcAttr(v.file)}" poster="${esc(thumbUrl(v))}" loop playsinline muted preload="none"></video>
+      ${thumbUrl(v) ? `<img class="frame" src="${esc(thumbUrl(v))}" alt="" decoding="async">` : ''}
+      <div class="err">&#9888;&#65039; This clip couldn't be played in your browser<br>(${esc(v.film)} ${esc(v.year)})</div>
+      <div class="pauseicon"><svg viewBox="0 0 24 24">${ICONS.play}</svg></div>
+      <div class="rail">
+        <div class="action like${likedSet.has(v.id) ? ' liked' : ''}"><span class="label">Like</span><svg viewBox="0 0 24 24">${ICONS.heart}</svg><span class="count">${rand(800, 90000)}</span></div>
+        <div class="action comment"><span class="label">Comment</span><svg viewBox="0 0 24 24">${ICONS.comment}</svg><span class="count">${rand(50, 4000)}</span></div>
+        <div class="action save${savedSet.has(v.id) ? ' saved' : ''}"><span class="label">Save</span><svg viewBox="0 0 24 24">${ICONS.bookmark}</svg></div>
+        <div class="action share"><span class="label">Share</span><svg viewBox="0 0 24 24">${ICONS.share}</svg></div>
+      </div>
+      <div class="meta">
+        <a class="filmlink" href="film.html?slug=${filmSlug(v)}"><span class="ft">${esc(v.film)}</span><span class="yr">${esc(v.year)}</span><span class="chev">&rsaquo;</span></a>
+        <div class="desc">${metaDesc(v)}</div>
+        <div class="cast">${castBlock(v)}</div>
+      </div>
+      <div class="progress"><div class="track"><div class="fill"></div></div></div>`;
+}
+
+// Fill an empty placeholder with real content (UI only). The video is NOT
+// loaded here — only the active slide attaches a stream (mobile decoder limit).
+function populateSlide(slide) {
+  if (slide.dataset.pop === '1' || !slide._data) return;
+  slide.innerHTML = slideMarkup(slide._data);
+  slide.dataset.pop = '1';
+  liveSlides.add(slide);
+  wireSlide(slide);
+}
+// Strip a slide back to an empty placeholder and free its video.
+function depopulateSlide(slide) {
+  if (slide.dataset.pop !== '1') return;
+  const vid = slide.querySelector('video');
+  if (vid) detachSrc(vid);
+  slide.innerHTML = '';
+  slide.dataset.pop = '';
+  liveSlides.delete(slide);
+}
+// Make `slide` active: keep a 3-wide window populated, stream only the active
+// video, free everything else. Runs once per snap — never mid-scroll.
+function activate(slide) {
+  if (!slide || slide === activeSlide) return;
+  activeSlide = slide;
+  const keep = [slide.previousElementSibling, slide, slide.nextElementSibling].filter(Boolean);
+  const keepSet = new Set(keep);
+  [...liveSlides].forEach(s => { if (!keepSet.has(s)) depopulateSlide(s); });
+  keep.forEach(populateSlide);
+  keep.forEach(s => {
+    const v = s.querySelector('video');
+    if (!v) return;
+    if (s === slide) { attachSrc(v); v.muted = muted; v.play().catch(() => {}); }
+    else detachSrc(v);                 // neighbours show their poster frame, no stream
+  });
+  slide.querySelector('.pauseicon')?.classList.remove('show');
+  const next = slide.nextElementSibling;
+  if (next && next._data) prefetchClip(next._data.file);   // warm the next clip's data
+}
+
+// Warm the NEXT clip's data in the HTTP cache (manifest + first segment) WITHOUT
+// opening a second video stream — so swiping starts fast and phones stay happy.
+const prefetched = new Set();
+async function prefetchClip(url) {
+  if (!url || prefetched.has(url) || !/playlist\.m3u8/.test(url)) return;
+  const c = navigator.connection;
+  if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ''))) return; // spare slow/metered data
+  prefetched.add(url);
+  try {
+    const master = await (await fetch(url)).text();
+    const base = url.slice(0, url.lastIndexOf('/') + 1);
+    const variantLine = master.split('\n').find(l => l.trim() && !l.startsWith('#'));
+    if (!variantLine) return;
+    const variantUrl = variantLine.startsWith('http') ? variantLine.trim() : base + variantLine.trim();
+    const variant = await (await fetch(variantUrl)).text();
+    const vbase = variantUrl.slice(0, variantUrl.lastIndexOf('/') + 1);
+    const segLine = variant.split('\n').find(l => l.trim() && !l.startsWith('#'));
+    if (segLine) {
+      const segUrl = segLine.startsWith('http') ? segLine.trim() : vbase + segLine.trim();
+      await fetch(segUrl); // warm the first segment in cache
+    }
+  } catch (e) { /* prefetch is best-effort */ }
+}
+
+function buildFeed() {
+  if (observer) observer.disconnect();
+  liveSlides.clear();
+  activeSlide = null;
+  feed.innerHTML = '';
+  feed.scrollTop = 0;
+
+  let list;
+  if (currentFilm) {
+    // single film: clips in chronological order
+    list = VIDEOS.filter(v => v.film === currentFilm.film && v.year === currentFilm.year)
+                 .sort((a, b) => a.start.localeCompare(b.start));
+  } else {
+    // all films: shuffled mix, no same film back-to-back
+    list = mixFeed(VIDEOS);
+  }
+
+  // Lightweight empty placeholders (full-height snap targets). Real content and
+  // the <video> are injected only near the viewport, so the DOM stays tiny.
+  const frag = document.createDocumentFragment();
+  list.forEach(v => {
+    const slide = document.createElement('div');
+    slide.className = 'slide';
+    slide.dataset.clipId = v.id || v.file;
+    slide._data = v;
+    frag.appendChild(slide);
+  });
+  feed.appendChild(frag);
+
+  // ONE observer: when a slide snaps past half-visible, make it active.
+  // All populate/stream/teardown work happens in activate() — none mid-scroll.
+  observer = new IntersectionObserver(entries => {
+    let best = null, ratio = 0;
+    for (const e of entries) if (e.isIntersecting && e.intersectionRatio > ratio) { ratio = e.intersectionRatio; best = e.target; }
+    if (best && ratio >= 0.5) activate(best);
+  }, { threshold: [0, 0.5, 1] });
+
+  feed.querySelectorAll('.slide').forEach(s => observer.observe(s));
+}
+
+// ---- per-slide interactions ----
+function wireSlide(slide) {
+  const vid = slide.querySelector('video');
+  const pauseicon = slide.querySelector('.pauseicon');
+  const fill = slide.querySelector('.fill');
+  const progress = slide.querySelector('.progress');
+  const like = slide.querySelector('.like');
+  const err = slide.querySelector('.err');
+
+  const frame = slide.querySelector('.frame');
+  vid.addEventListener('error', () => { if (loaded(vid)) err.style.display = 'block'; });
+  vid.addEventListener('playing', () => { err.style.display = 'none'; if (frame) frame.classList.add('gone'); });
+  vid.addEventListener('emptied', () => { if (frame) frame.classList.remove('gone'); });
+
+  vid.addEventListener('timeupdate', () => {
+    if (vid.duration) fill.style.width = (vid.currentTime / vid.duration * 100) + '%';
+  });
+  progress.addEventListener('click', e => {
+    e.stopPropagation();
+    const r = progress.getBoundingClientRect();
+    if (vid.duration) vid.currentTime = ((e.clientX - r.left) / r.width) * vid.duration;
+  });
+
+  // Single tap toggles play/pause INSTANTLY (no 300ms wait). A quick second tap
+  // is treated as a like and resumes playback so it doesn't get left paused.
+  let lastTap = 0;
+  vid.addEventListener('click', e => {
+    const now = Date.now();
+    const isDouble = now - lastTap < 300;
+    lastTap = now;
+    if (isDouble) {
+      spawnHeart(slide, e.clientX, e.clientY);
+      likeOn(slide);
+      if (vid.paused) { vid.play().catch(() => {}); pauseicon.classList.remove('show'); }
+      return;
+    }
+    if (vid.paused) { vid.play().catch(() => {}); pauseicon.classList.remove('show'); }
+    else { vid.pause(); pauseicon.classList.add('show'); }
+  });
+
+  like.addEventListener('click', () => toggleLike(slide));
+  slide.querySelector('.save').addEventListener('click', () => toggleSave(slide));
+}
+
+function spawnHeart(slide, x, y) {
+  const r = slide.getBoundingClientRect();
+  const h = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  h.setAttribute('viewBox', '0 0 24 24');
+  h.classList.add('bigheart');
+  h.innerHTML = ICONS.heart;
+  h.style.left = (x - r.left) + 'px';
+  h.style.top = (y - r.top) + 'px';
+  slide.appendChild(h);
+  setTimeout(() => h.remove(), 850);
+}
+
+// ---- mute ----
+const muteBtn = document.getElementById('muteBtn');
+const muteIcon = document.getElementById('muteIcon');
+function renderMute() { muteIcon.innerHTML = muted ? ICONS.soundOff : ICONS.soundOn; }
+renderMute();
+muteBtn.addEventListener('click', () => {
+  muted = !muted;
+  feed.querySelectorAll('video').forEach(v => v.muted = muted);
+  renderMute();
+});
+
+// ---- keyboard ----
+document.addEventListener('keydown', e => {
+  if (filmPanel.classList.contains('open')) {
+    if (e.key === 'Escape') filmPanel.classList.remove('open');
+    return;
+  }
+  const h = window.innerHeight;
+  if (e.key === 'ArrowDown') feed.scrollBy({ top: h, behavior: 'smooth' });
+  if (e.key === 'ArrowUp') feed.scrollBy({ top: -h, behavior: 'smooth' });
+  if (e.key === 'm') muteBtn.click();
+  if (e.key === 'f' && filmsBtn) filmsBtn.click();
+  if (e.key === ' ') {
+    e.preventDefault();
+    const i = Math.round(feed.scrollTop / h);
+    const vid = feed.children[i]?.querySelector('video');
+    if (vid) vid.paused ? vid.play() : vid.pause();
+  }
+});
+
+// ---- start ----
+buildFeed();
+
+// Deep-link: arriving from a film page (feed.html#film=Title|Year) opens that film.
+(function () {
+  if (!location.hash.startsWith('#film=')) return;
+  const [film, year] = decodeURIComponent(location.hash.slice(6)).split('|');
+  const f = FILMS.find(x => x.film === film && (!year || String(x.year) === String(year)));
+  if (f) selectFilm(f);
+})();
+
+document.getElementById('start').addEventListener('click', () => {
+  const s = document.getElementById('start');
+  s.classList.add('hide');
+  setTimeout(() => s.remove(), 520);
+  muted = false;
+  renderMute();
+  if (!activeSlide) activate(feed.querySelector('.slide'));
+  const vid = activeSlide && activeSlide.querySelector('video');
+  if (vid) {
+    vid.muted = false;
+    vid.play().catch(() => { muted = true; vid.muted = true; renderMute(); vid.play().catch(()=>{}); });
+  }
+});
+</script>
+</body>
+</html>

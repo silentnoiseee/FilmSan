@@ -38,14 +38,24 @@ $errPath = Join-Path $root "bunny_upload_errors.log"
 # --- Load any prior upload record so re-runs resume -------------------------
 $records = @()
 if (Test-Path $mapPath) {
-    $records = @(Get-Content $mapPath -Raw | ConvertFrom-Json)
+    $raw = Get-Content $mapPath -Raw | ConvertFrom-Json
+    if ($raw -isnot [array]) { $raw = @($raw) }
+    if ($raw.Count -gt 0 -and ($raw[0].PSObject.Properties.Name -contains 'value')) { $raw = $raw[0].value }  # unwrap legacy corruption
+    $records = @($raw | Where-Object { $_ -and $_.guid -and $_.relpath })
 }
 # Build a quick lookup of already-uploaded relative paths
 $done = @{}
 foreach ($r in $records) { if ($r.guid) { $done[$r.relpath] = $true } }
 
+# JSON built by hand so ConvertTo-Json array quirks can never corrupt the record.
+function JStr($s) { if ($null -eq $s) { return 'null' } '"' + ($s.ToString() -replace '\\','\\\\' -replace '"','\"' -replace "`r","" -replace "`n",'\n') + '"' }
 function Save-Records {
-    ($records | ConvertTo-Json -Depth 6) | Set-Content -Path $mapPath -Encoding UTF8
+    $items = New-Object System.Collections.Generic.List[string]
+    foreach ($r in $records) {
+        if (-not $r.guid) { continue }
+        $items.Add("{""relpath"":$(JStr $r.relpath),""folder"":$(JStr $r.folder),""file"":$(JStr $r.file),""title"":$(JStr $r.title),""guid"":$(JStr $r.guid),""collectionId"":$(JStr $r.collectionId)}")
+    }
+    ("[`n" + ($items -join ",`n") + "`n]") | Set-Content -Path $mapPath -Encoding UTF8
 }
 
 # --- Collections: one per film folder, created on demand -------------------

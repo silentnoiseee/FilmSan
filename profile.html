@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmFeed — Profile</title>
+<style>
+  :root {
+    --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
+    --line:rgba(255,255,255,.12); --bg:#0a0a0a; --like:#ff3b5c; --save:#f5c451;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 18px; }
+
+  header.masthead { position:sticky; top:0; z-index:60; background:rgba(10,10,10,.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .masthead .bar { position:relative; display:flex; align-items:center; justify-content:center; padding:14px 16px; }
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:3px; }
+  .wordmark b { font-weight:300; }
+  .back { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.07); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .back svg { width:17px; height:17px; fill:#fff; }
+  #accountBtn { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:#b9bdc2; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; }
+  #accountBtn img { width:100%; height:100%; object-fit:cover; }
+  #accountBtn svg { width:18px; height:18px; fill:#fff; }
+
+  /* Profile header */
+  .phead { display:flex; gap:20px; align-items:center; padding:34px 0 22px; flex-wrap:wrap; }
+  .pavatar { width:84px; height:84px; border-radius:50%; background:#b9bdc2 center/cover; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); }
+  .pavatar svg { width:46px; height:46px; fill:#fff; }
+  .pinfo { flex:1; min-width:200px; }
+  .pinfo h1 { font-size:24px; font-weight:700; letter-spacing:-.3px; }
+  .pinfo .uname { color:var(--muted); font-size:14px; margin-top:2px; }
+  .pinfo .bio { color:rgba(255,255,255,.82); font-size:14px; line-height:1.5; margin-top:10px; max-width:560px; }
+  .editbtn { margin-top:14px; display:inline-block; padding:8px 16px; border:1px solid var(--line); border-radius:999px; font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; background:rgba(255,255,255,.05); transition:transform 140ms var(--ease-out), background 160ms ease; }
+  .editbtn:active { transform:scale(.97); }
+
+  .stats { display:flex; gap:30px; padding:6px 0 18px; border-bottom:1px solid var(--line); }
+  .stat { text-align:left; }
+  .stat .n { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stat .l { font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted-2); margin-top:2px; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:6px; padding:16px 0; position:sticky; top:59px; background:var(--bg); z-index:20; }
+  .tab { padding:9px 16px; border-radius:999px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:1px solid transparent; transition:color 160ms ease, background 160ms ease; }
+  .tab.active { color:#fff; background:rgba(255,255,255,.1); }
+
+  /* Poster grid */
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding-bottom:60px; }
+  @media (min-width:560px){ .grid { grid-template-columns:repeat(4,1fr); } }
+  @media (min-width:820px){ .grid { grid-template-columns:repeat(6,1fr); } }
+  .pcard { position:relative; aspect-ratio:2/3; border-radius:9px; overflow:hidden; background:#1a1a1a center/cover; transition:transform 200ms var(--ease-out); }
+  .pcard:active { transform:scale(.98); }
+  @media (hover:hover){ .pcard:hover { transform:translateY(-3px); } }
+  .pcard .ttl { position:absolute; left:0; right:0; bottom:0; padding:18px 8px 7px; font-size:11px; line-height:1.25; background:linear-gradient(to top,rgba(0,0,0,.85),transparent); opacity:0; transition:opacity 200ms var(--ease-out); }
+  @media (hover:hover){ .pcard:hover .ttl { opacity:1; } }
+  .empty { color:var(--muted); font-size:14px; padding:30px 4px 60px; }
+  .center-note { text-align:center; color:var(--muted); padding:80px 20px; }
+  .center-note a { color:#fff; border-bottom:1px solid rgba(255,255,255,.4); cursor:pointer; }
+
+  /* Edit modal */
+  .modal { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; visibility:hidden; transition:opacity 220ms var(--ease-out), visibility 220ms; }
+  .modal.open { opacity:1; visibility:visible; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  .card2 { position:relative; background:#0e0e0e; border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:28px 24px; width:100%; max-width:360px; box-shadow:0 30px 80px rgba(0,0,0,.6); transform:scale(.95) translateY(8px); opacity:0; transition:transform 260ms var(--ease-out), opacity 220ms var(--ease-out); }
+  .modal.open .card2 { transform:none; opacity:1; }
+  .card2 h2 { font-size:22px; font-weight:700; margin-bottom:5px; }
+  .card2 .sub { color:var(--muted); font-size:13px; margin-bottom:14px; }
+  .card2 label { display:block; font-size:11px; letter-spacing:.4px; text-transform:uppercase; color:var(--muted-2); margin:14px 0 6px; }
+  .card2 input, .card2 textarea { width:100%; background:#1a1a1a; border:1px solid rgba(255,255,255,.12); border-radius:11px; padding:12px 13px; color:#fff; font-size:14px; font-family:inherit; }
+  .card2 input:focus, .card2 textarea:focus { outline:none; border-color:rgba(255,255,255,.5); }
+  .card2 textarea { resize:vertical; min-height:64px; }
+  .card2 .btn { width:100%; margin-top:18px; background:#fff; color:#000; border:none; border-radius:11px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+  .card2 .btn.secondary { background:rgba(255,255,255,.08); color:#fff; margin-top:10px; }
+  .card2 .msg { margin-top:12px; font-size:13px; min-height:16px; }
+  .card2 .msg.err { color:#ff6b6b; } .card2 .msg.ok { color:#4cd964; }
+  .card2 .x { position:absolute; top:14px; right:16px; font-size:24px; color:var(--muted); cursor:pointer; }
+
+  /* Auth modal (for logged-out) */
+  .switch { margin-top:14px; text-align:center; font-size:13px; color:var(--muted); }
+  .switch a { color:#fff; cursor:pointer; font-weight:600; border-bottom:1px solid rgba(255,255,255,.3); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
+    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <button id="accountBtn" title="Account"></button>
+  </div>
+</header>
+
+<main id="app"><div class="wrap"><p class="center-note">Loading…</p></div></main>
+
+<!-- Edit profile modal -->
+<div class="modal" id="profileModal"><div class="card2">
+  <div class="x" id="profClose">&times;</div>
+  <h2>Edit profile</h2>
+  <div class="sub" id="profEmail"></div>
+  <label>Username (your login — can't be changed)</label>
+  <input id="profUsername" readonly style="opacity:.6;cursor:not-allowed;">
+  <label>Display name</label><input id="profDisplay" maxlength="50" placeholder="Display name">
+  <label>Bio</label><textarea id="profBio" maxlength="300" placeholder="A little about you…"></textarea>
+  <label>Avatar image URL (optional)</label><input id="profAvatar" placeholder="https://…">
+  <button class="btn" id="profSave">Save changes</button>
+  <div class="msg" id="profMsg"></div>
+  <button class="btn secondary" id="profLogout">Log out</button>
+</div></div>
+
+<!-- Auth modal -->
+<div class="modal" id="authModal"><div class="card2">
+  <div class="x" id="authClose">&times;</div>
+  <h2 id="authTitle">Log in</h2>
+  <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
+  <label>Username</label><input id="authUser" autocomplete="username" placeholder="3–30 letters, numbers, _">
+  <label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+  <button class="btn" id="authSubmit">Log in</button>
+  <div class="msg" id="authMsg"></div>
+  <div class="switch" id="authSwitch">New here? <a>Create an account</a></div>
+</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+console.log('FilmFeed profile: v1');
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const PERSON = '<svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg>';
+
+const SB_URL='https://dykfcvjdfuvsonswojgd.supabase.co';
+const SB_KEY='sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+let user=null, myProfile=null;
+
+let FILMMAP = {};
+async function loadFilms(){ try{ const a=await (await fetch('films.json')).json(); a.forEach(f=>FILMMAP[f.slug]=f); }catch(e){} }
+
+const targetUsername = new URLSearchParams(location.search).get('u');
+let target = null;          // profile being viewed
+let lists = { watchlist:[], watched:[], likes:[] };
+let activeTab = 'watchlist';
+
+function refreshAccountBtn(){
+  const b=document.getElementById('accountBtn');
+  const a = user && myProfile && myProfile.avatar_url;
+  b.innerHTML = a ? `<img src="${esc(a)}">` : PERSON;
+  b.style.background = a ? 'rgba(255,255,255,.07)' : '#b9bdc2';
+}
+document.getElementById('accountBtn').onclick = () => { user ? (location.href='profile.html') : openAuth('login'); };
+
+async function loadProfileData(){
+  // Decide whose profile to show
+  if (targetUsername) {
+    const { data } = await sb.from('profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('username', targetUsername).maybeSingle();
+    target = data;
+  } else if (user) {
+    const { data } = await sb.from('profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('id', user.id).maybeSingle();
+    target = data;
+  } else { target = null; }
+
+  if (!target) { renderNotFound(); return; }
+
+  const [uf, lk] = await Promise.all([
+    sb.from('user_films').select('film_slug,status').eq('user_id', target.id),
+    sb.from('film_likes').select('film_slug').eq('user_id', target.id)
+  ]);
+  lists.watchlist = (uf.data||[]).filter(r=>r.status==='watchlist').map(r=>r.film_slug);
+  lists.watched   = (uf.data||[]).filter(r=>r.status==='watched').map(r=>r.film_slug);
+  lists.likes     = (lk.data||[]).map(r=>r.film_slug);
+  render();
+}
+
+function renderNotFound(){
+  document.getElementById('app').innerHTML = targetUsername
+    ? `<div class="wrap"><p class="center-note">No user found for “${esc(targetUsername)}”.</p></div>`
+    : `<div class="wrap"><p class="center-note"><a id="loginLink">Log in</a> to see your profile, watchlist and likes.</p></div>`;
+  const l=document.getElementById('loginLink'); if(l) l.onclick=()=>openAuth('login');
+}
+
+function posterGrid(slugs){
+  if(!slugs.length) return `<div class="empty">Nothing here yet.</div>`;
+  return `<div class="grid">${slugs.map(s=>{
+    const f=FILMMAP[s]; const poster=f?f.poster_url:''; const ttl=f?`${esc(f.title)} (${esc(f.year)})`:esc(s);
+    return `<a class="pcard" href="film.html?slug=${encodeURIComponent(s)}" style="background-image:url('${esc(poster)}')"><div class="ttl">${ttl}</div></a>`;
+  }).join('')}</div>`;
+}
+
+function render(){
+  const isOwn = user && target && user.id===target.id;
+  const name = target.display_name || target.username;
+  const av = target.avatar_url;
+  document.title = `${name} — FilmFeed`;
+  document.getElementById('app').innerHTML = `
+    <div class="wrap">
+      <div class="phead">
+        <div class="pavatar" style="${av?`background-image:url('${esc(av)}')`:''}">${av?'':PERSON}</div>
+        <div class="pinfo">
+          <h1>${esc(name)}</h1>
+          <div class="uname">@${esc(target.username)}</div>
+          ${target.bio?`<div class="bio">${esc(target.bio)}</div>`:''}
+          ${isOwn?`<div class="editbtn" id="editBtn">Edit profile</div>`:''}
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n">${lists.watched.length}</div><div class="l">Watched</div></div>
+        <div class="stat"><div class="n">${lists.watchlist.length}</div><div class="l">Watchlist</div></div>
+        <div class="stat"><div class="n">${lists.likes.length}</div><div class="l">Likes</div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab" data-t="watchlist">Watchlist</div>
+        <div class="tab" data-t="watched">Watched</div>
+        <div class="tab" data-t="likes">Likes</div>
+      </div>
+      <div id="gridArea"></div>
+    </div>`;
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => { activeTab = t.dataset.t; paintTab(); });
+  const eb=document.getElementById('editBtn'); if(eb) eb.onclick=openEdit;
+  paintTab();
+}
+function paintTab(){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.t===activeTab));
+  document.getElementById('gridArea').innerHTML = posterGrid(lists[activeTab]);
+}
+
+// ---------- edit profile ----------
+const profileModal=document.getElementById('profileModal');
+function openEdit(){
+  if(!user) return openAuth('login');
+  document.getElementById('profEmail').textContent='@'+(myProfile&&myProfile.username||'');
+  document.getElementById('profUsername').value=(myProfile&&myProfile.username)||'';
+  document.getElementById('profDisplay').value=(myProfile&&myProfile.display_name)||'';
+  document.getElementById('profBio').value=(myProfile&&myProfile.bio)||'';
+  document.getElementById('profAvatar').value=(myProfile&&myProfile.avatar_url)||'';
+  document.getElementById('profMsg').textContent='';
+  profileModal.classList.add('open');
+}
+document.getElementById('profClose').onclick=()=>profileModal.classList.remove('open');
+document.getElementById('profLogout').onclick=async()=>{ await sb.auth.signOut(); location.href='index.html'; };
+document.getElementById('profSave').onclick=async()=>{
+  const msg=document.getElementById('profMsg'); msg.className='msg'; msg.textContent='Saving…';
+  const updates={ display_name:document.getElementById('profDisplay').value.trim()||null, bio:document.getElementById('profBio').value.trim()||null, avatar_url:document.getElementById('profAvatar').value.trim()||null };
+  const {error}=await sb.from('profiles').update(updates).eq('id',user.id);
+  if(error){ msg.className='msg err'; msg.textContent=error.message; return; }
+  myProfile=Object.assign(myProfile||{id:user.id}, updates);
+  if(target && target.id===user.id) target=Object.assign(target, updates);
+  msg.className='msg ok'; msg.textContent='Saved!';
+  refreshAccountBtn(); render();
+};
+
+// ---------- auth ----------
+const USER_EMAIL_DOMAIN='users.cinematicroll.com';
+const authModal=document.getElementById('authModal'); let authMode='login';
+function openAuth(m){ authMode=m||'login'; renderAuthMode(); document.getElementById('authMsg').textContent=''; authModal.classList.add('open'); }
+function renderAuthMode(){ const l=authMode==='login'; document.getElementById('authTitle').textContent=l?'Log in':'Create account'; document.getElementById('authSub').textContent=l?'Welcome back to FilmFeed.':'Join FilmFeed to track films.'; document.getElementById('authSubmit').textContent=l?'Log in':'Sign up'; document.getElementById('authSwitch').innerHTML=l?'New here? <a>Create an account</a>':'Have an account? <a>Log in</a>'; }
+document.getElementById('authClose').onclick=()=>authModal.classList.remove('open');
+document.getElementById('authSwitch').onclick=()=>{ authMode=authMode==='login'?'signup':'login'; renderAuthMode(); };
+document.getElementById('authSubmit').onclick=async()=>{
+  const un=document.getElementById('authUser').value.trim().toLowerCase().replace(/[^a-z0-9_]/g,'');
+  const pw=document.getElementById('authPass').value; const msg=document.getElementById('authMsg'); msg.className='msg'; msg.textContent='Working…';
+  if(un.length<3||un.length>30){ msg.className='msg err'; msg.textContent='Username must be 3–30 letters, numbers, or _.'; return; }
+  if(pw.length<6){ msg.className='msg err'; msg.textContent='Password must be at least 6 characters.'; return; }
+  const email=un+'@'+USER_EMAIL_DOMAIN;
+  const res=authMode==='signup'?await sb.auth.signUp({email,password:pw}):await sb.auth.signInWithPassword({email,password:pw});
+  if(res.error){ msg.className='msg err'; msg.textContent=/already registered|already exists/i.test(res.error.message)?'That username is taken.':/invalid login/i.test(res.error.message)?'Wrong username or password.':res.error.message; return; }
+  if(authMode==='signup'&&!res.data.session){ msg.className='msg err'; msg.textContent='Signups are blocked until "Confirm email" is OFF in Supabase.'; return; }
+  authModal.classList.remove('open');
+};
+
+sb.auth.onAuthStateChange((_e,session)=>{
+  user=session?.user||null;
+  refreshAccountBtn();
+  if(user){ setTimeout(async()=>{ const {data}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle(); myProfile=data; refreshAccountBtn(); await loadProfileData(); },0); }
+  else { myProfile=null; loadProfileData(); }
+});
+
+(async()=>{ await loadFilms(); /* auth listener triggers loadProfileData */ })();
+</script>
+</body>
+</html>

@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmFeed — Archive</title>
+<style>
+  :root { --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4); --line:rgba(255,255,255,.12); --bg:#0a0a0a; --ease-out:cubic-bezier(0.23,1,0.32,1); }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { max-width:920px; margin:0 auto; padding:0 20px; }
+  .eyebrow { font-size:11px; letter-spacing:.32em; text-transform:uppercase; color:var(--muted-2); }
+
+  header.masthead { position:sticky; top:0; z-index:60; background:rgba(10,10,10,.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .masthead .bar { position:relative; display:flex; align-items:center; justify-content:center; padding:14px 16px; }
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:3px; } .wordmark b { font-weight:300; }
+  .back { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.07); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .back svg { width:17px; height:17px; fill:#fff; }
+  #accountBtn { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:#b9bdc2; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #accountBtn svg { width:18px; height:18px; fill:#fff; }
+  nav.nav { display:flex; gap:16px; justify-content:center; padding:0 16px 12px; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); }
+  nav.nav a.on { color:#fff; } nav.nav .dot { color:var(--muted-2); }
+
+  .lead { padding:54px 0 30px; text-align:center; }
+  .lead h1 { font-size:clamp(32px,8vw,56px); font-weight:300; letter-spacing:-1px; }
+  .lead p { margin:16px auto 0; max-width:520px; color:var(--muted); font-size:15px; line-height:1.6; }
+
+  .tabs { display:flex; gap:8px; justify-content:center; padding:8px 0 30px; flex-wrap:wrap; }
+  .tab { padding:10px 18px; border-radius:999px; font-size:12.5px; font-weight:600; letter-spacing:.06em; color:var(--muted); cursor:pointer; border:1px solid var(--line); background:rgba(255,255,255,.04); transition:color 160ms ease, background 160ms ease, transform 140ms var(--ease-out); }
+  .tab:active { transform:scale(.97); }
+  .tab.active { color:#000; background:#fff; border-color:#fff; }
+
+  .panel { display:none; padding-bottom:70px; }
+  .panel.show { display:block; animation:rise 420ms var(--ease-out) both; }
+  @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  .soon { border:1px dashed var(--line); border-radius:16px; padding:40px 30px; text-align:center; }
+  .soon .badge { display:inline-block; font-size:10px; letter-spacing:.28em; text-transform:uppercase; color:var(--muted-2); border:1px solid var(--line); border-radius:999px; padding:6px 13px; margin-bottom:18px; }
+  .soon h2 { font-size:24px; font-weight:600; letter-spacing:-.3px; }
+  .soon p { margin:14px auto 0; max-width:520px; color:var(--muted); font-size:14px; line-height:1.6; }
+
+  footer { padding:46px 20px 60px; text-align:center; color:var(--muted-2); font-size:11px; letter-spacing:.1em; border-top:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
+    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <a id="accountBtn" href="profile.html" title="Account"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg></a>
+  </div>
+  <nav class="nav"><a href="films.html">Films</a><span class="dot">&middot;</span><a class="on" href="archive.html">Archive</a><span class="dot">&middot;</span><a href="feed.html">The Feed</a></nav>
+</header>
+
+<div class="wrap">
+  <div class="lead">
+    <div class="eyebrow">The Archive</div>
+    <h1>Our work, collected.</h1>
+    <p>Everything we make — premieres, interviews, and features — lives here. A growing record of the artists and films we champion.</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" data-t="premieres">Premieres</div>
+    <div class="tab" data-t="interviews">Interviews</div>
+    <div class="tab" data-t="features">Features</div>
+  </div>
+
+  <div class="panel show" id="premieres">
+    <div class="soon"><div class="badge">Coming soon</div>
+      <h2>Premieres</h2>
+      <p>World-first debuts of music videos and short films from the artists and directors we work with — presented in full, with credits and context.</p>
+    </div>
+  </div>
+  <div class="panel" id="interviews">
+    <div class="soon"><div class="badge">Coming soon</div>
+      <h2>Interviews</h2>
+      <p>In-depth conversations with the filmmakers and music-video directors behind the work — on craft, process, and the moments that matter.</p>
+    </div>
+  </div>
+  <div class="panel" id="features">
+    <div class="soon"><div class="badge">Coming soon</div>
+      <h2>Features</h2>
+      <p>Essays, retrospectives, and editorial deep-dives into the films, scenes, and ideas shaping contemporary cinema.</p>
+    </div>
+  </div>
+</div>
+
+<footer>&copy; 2026 FilmFeed &middot; A film &amp; video publication</footer>
+
+<script>
+console.log('FilmFeed archive: v1');
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('active', x === t));
+  document.querySelectorAll('.panel').forEach(p => p.classList.toggle('show', p.id === t.dataset.t));
+});
+</script>
+</body>
+</html>
