@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmFeed — A Film &amp; Video Publication</title>
+<meta name="description" content="A curated film and video publication. Premieres, interviews, and an endless cut of cinema.">
+<style>
+  :root {
+    --fg: #fff;
+    --muted: rgba(255,255,255,.58);
+    --muted-2: rgba(255,255,255,.4);
+    --line: rgba(255,255,255,.13);
+    --bg: #0a0a0a;
+    --card: #141414;
+    --like: #ff3b5c;
+    --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html { scroll-behavior: smooth; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+    overflow-x: hidden;
+  }
+  a { color: inherit; text-decoration: none; }
+  .eyebrow { font-size: 11px; letter-spacing: .32em; text-transform: uppercase; color: var(--muted-2); }
+
+  /* ---- Masthead ---- */
+  header.masthead {
+    position: sticky; top: 0; z-index: 60;
+    background: rgba(10,10,10,.82); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid var(--line);
+    padding: 0;
+  }
+  #accountBtn {
+    position: absolute; right: 16px; top: 50%; transform: translateY(-50%);
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(255,255,255,.07); border: 1px solid var(--line);
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; font-size: 14px; font-weight: 700; cursor: pointer; overflow: hidden;
+    transition: transform 160ms var(--ease-out);
+  }
+  #accountBtn:active { transform: translateY(-50%) scale(.92); }
+  #accountBtn img { width: 100%; height: 100%; object-fit: cover; }
+  #accountBtn svg { width: 18px; height: 18px; fill: #fff; }
+  nav.nav {
+    display: flex; gap: 14px; justify-content: center; align-items: center;
+    padding: 16px 54px; font-size: 11px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--muted); overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+  }
+  nav.nav::-webkit-scrollbar { display: none; }
+  nav.nav a { transition: color 160ms ease; }
+  nav.nav a.cta { color: #fff; }
+  nav.nav .dot { color: var(--muted-2); }
+  @media (hover: hover) { nav.nav a:hover { color: #fff; } }
+
+  /* ---- Hero ---- */
+  .hero {
+    position: relative; min-height: 78vh; display: flex; align-items: flex-end;
+    background-size: cover; background-position: center; background-color: #000; overflow: hidden;
+  }
+  .hero-video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0; background: #000; }
+  .hero::after { content: ""; position: absolute; inset: 0; z-index: 1; background: linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.2) 45%, rgba(0,0,0,.45) 100%); }
+  .hero-inner { position: relative; z-index: 2; padding: 0 22px 44px; max-width: 720px; }
+  .hero-inner .eyebrow { margin-bottom: 14px; }
+  .hero h1 { font-size: clamp(34px, 8vw, 64px); font-weight: 300; letter-spacing: -1px; line-height: 1.02; }
+  .hero .sub { margin-top: 14px; color: rgba(255,255,255,.8); font-size: 15px; line-height: 1.5; max-width: 540px; }
+  .watch {
+    display: inline-flex; align-items: center; gap: 11px; margin-top: 24px;
+    padding: 12px 22px 12px 16px; border: 1px solid rgba(255,255,255,.55); border-radius: 999px;
+    font-size: 12px; letter-spacing: .18em; text-transform: uppercase; font-weight: 600;
+    transition: background 200ms var(--ease-out), color 200ms var(--ease-out), transform 160ms var(--ease-out);
+  }
+  .watch .ring { width: 22px; height: 22px; border: 1.5px solid currentColor; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+  .watch .ring svg { width: 10px; height: 10px; fill: currentColor; margin-left: 1px; }
+  .watch:active { transform: scale(.97); }
+  @media (hover: hover) { .watch:hover { background: #fff; color: #000; } }
+
+  /* Hero portrait badge + quote — reveal together over the video */
+  .hero-portrait {
+    position: absolute; right: 16px; bottom: 150px; z-index: 3;
+    display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+    max-width: min(86vw, 440px); pointer-events: none;
+    perspective: 900px;   /* gives the spin real 3D depth */
+  }
+  .hp-card {
+    flex: 0 0 auto; display: flex; flex-direction: column; align-items: center; gap: 9px;
+    /* Spins around its vertical axis (like a card turning), staying upright. */
+    opacity: 0; transform: rotateY(-360deg) scale(.7); transform-origin: center;
+    transition: opacity 560ms var(--ease-out), transform 860ms var(--ease-out);
+  }
+  .hero-portrait.show .hp-card { opacity: 1; transform: rotateY(0deg) scale(1); }
+  .hp-card img {
+    width: 92px; height: 92px; border-radius: 50%; object-fit: cover; display: block;
+    border: 2px solid rgba(255,255,255,.85); box-shadow: 0 12px 34px rgba(0,0,0,.6);
+  }
+  .hp-name {
+    font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: #fff; white-space: nowrap;
+    background: rgba(0,0,0,.4); padding: 5px 11px; border-radius: 999px; backdrop-filter: blur(4px);
+  }
+  .hp-quote {
+    flex: 0 1 auto; text-align: right; color: #fff;
+    font-family: Georgia, "Times New Roman", serif; font-style: italic; font-size: 15px; line-height: 1.45;
+    text-shadow: 0 1px 6px rgba(0,0,0,.75);
+    opacity: 0; transform: translateX(18px);
+    transition: opacity 520ms var(--ease-out) 220ms, transform 620ms var(--ease-out) 220ms;
+  }
+  .hero-portrait.show .hp-quote { opacity: 1; transform: none; }
+  @media (min-width: 780px) {
+    .hero-portrait { right: 30px; bottom: 46px; gap: 18px; }
+    .hp-card img { width: 128px; height: 128px; }
+    .hp-quote { font-size: 17px; max-width: 300px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .hp-card { transition: opacity 300ms ease; transform: none; }
+    .hero-portrait.show .hp-card { transform: none; }
+  }
+
+  /* ---- Feed band ---- */
+  .feedband { text-align: center; padding: 70px 22px; border-bottom: 1px solid var(--line); }
+  .feedband h2 { font-size: clamp(26px, 6vw, 44px); font-weight: 300; letter-spacing: -.5px; margin: 14px 0 12px; }
+  .feedband p { color: var(--muted); font-size: 14px; max-width: 460px; margin: 0 auto 26px; line-height: 1.55; }
+  .enter {
+    display: inline-block; padding: 13px 26px; background: #fff; color: #000;
+    border-radius: 999px; font-size: 12px; letter-spacing: .16em; text-transform: uppercase; font-weight: 700;
+    transition: transform 160ms var(--ease-out), opacity 160ms ease;
+  }
+  .enter:active { transform: scale(.97); }
+  @media (hover: hover) { .enter:hover { opacity: .9; } }
+
+  /* ---- Three pillars ---- */
+  .pillars { display: grid; gap: 1px; background: var(--line); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  @media (min-width: 780px) { .pillars { grid-template-columns: repeat(3, 1fr); } }
+  .pillar { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 40px 24px 46px; background: var(--bg); overflow: hidden; transition: background 240ms var(--ease-out); }
+  .pillar .ptitle { font-size: clamp(28px, 6vw, 38px); font-weight: 300; letter-spacing: -.5px; }
+  .pillar .pdesc { color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 360px; }
+  .pillar .parrow { font-size: 20px; color: var(--muted-2); margin-top: 6px; transition: transform 260ms var(--ease-out), color 240ms ease; }
+  @media (hover: hover) { .pillar:hover { background: #131313; } .pillar:hover .parrow { transform: translateX(6px); color: #fff; } }
+
+  /* ---- Row sections (legacy) ---- */
+  .rowsec { padding: 46px 0; border-bottom: 1px solid var(--line); }
+  .rowhead { display: flex; align-items: baseline; justify-content: space-between; padding: 0 22px; margin-bottom: 20px; }
+  .rowhead .seeall { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted-2); }
+  .row { display: flex; gap: 16px; overflow-x: auto; padding: 0 22px 6px; scrollbar-width: none; scroll-snap-type: x proximity; }
+  .row::-webkit-scrollbar { display: none; }
+  .card { flex: 0 0 auto; width: 240px; scroll-snap-align: start; }
+  .card .thumb {
+    width: 100%; aspect-ratio: 16/9; background-size: cover; background-position: center;
+    background-color: #1a1a1a; border-radius: 10px; transition: transform 300ms var(--ease-out);
+  }
+  .card .cardtitle { margin-top: 10px; font-size: 14px; font-weight: 600; }
+  .card .cardmeta { margin-top: 3px; font-size: 12px; color: var(--muted-2); }
+  .card:active .thumb { transform: scale(.985); }
+  @media (hover: hover) { .card:hover .thumb { transform: scale(1.012); } }
+
+  .soon {
+    margin: 0 22px; padding: 34px 26px; border: 1px dashed var(--line); border-radius: 14px;
+    color: var(--muted); font-size: 14px; line-height: 1.55; max-width: 620px;
+  }
+  .soon b { color: #fff; font-weight: 600; }
+
+  /* ---- Footer ---- */
+  footer { padding: 50px 22px 60px; text-align: center; color: var(--muted-2); }
+  footer .wm { font-size: 16px; font-weight: 800; letter-spacing: 2px; color: #fff; }
+  footer .wm b { font-weight: 300; }
+  footer .fnav { margin: 18px 0; display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; font-size: 11px; letter-spacing: .16em; text-transform: uppercase; color: var(--muted); }
+  footer .copy { font-size: 11px; letter-spacing: .1em; }
+
+  /* ---- Modals (auth + profile) ---- */
+  .modal { position: fixed; inset: 0; z-index: 120; background: rgba(0,0,0,.62); display: flex; align-items: center; justify-content: center; padding: 20px; opacity: 0; visibility: hidden; transition: opacity 220ms var(--ease-out), visibility 220ms; }
+  .modal.open { opacity: 1; visibility: visible; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+  .card2 { position: relative; background: #0e0e0e; border: 1px solid rgba(255,255,255,.1); border-radius: 20px; padding: 28px 24px; width: 100%; max-width: 360px; box-shadow: 0 30px 80px rgba(0,0,0,.6); transform: scale(.95) translateY(8px); opacity: 0; transition: transform 260ms var(--ease-out), opacity 220ms var(--ease-out); max-height: 90vh; overflow-y: auto; }
+  .modal.open .card2 { transform: none; opacity: 1; }
+  .card2 .gbtn { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; }
+  .card2 .ordiv { display: flex; align-items: center; gap: 12px; margin: 16px 0 2px; color: var(--muted-2); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; }
+  .card2 .ordiv::before, .card2 .ordiv::after { content: ""; flex: 1; height: 1px; background: rgba(255,255,255,.12); }
+  .card2 h2 { font-size: 23px; font-weight: 700; letter-spacing: -.3px; margin-bottom: 5px; }
+  .card2 .sub { color: var(--muted); font-size: 13px; margin-bottom: 16px; word-break: break-word; }
+  .card2 label { display: block; font-size: 11px; letter-spacing: .4px; text-transform: uppercase; color: var(--muted-2); margin: 14px 0 6px; }
+  .card2 input, .card2 textarea { width: 100%; background: #1a1a1a; border: 1px solid rgba(255,255,255,.12); border-radius: 11px; padding: 12px 13px; color: #fff; font-size: 14px; font-family: inherit; transition: border-color 160ms ease, background 160ms ease; }
+  .card2 input:focus, .card2 textarea:focus { outline: none; border-color: rgba(255,255,255,.5); background: #202020; }
+  .card2 textarea { resize: vertical; min-height: 64px; }
+  .card2 .btn { width: 100%; margin-top: 20px; background: #fff; color: #000; border: none; border-radius: 11px; padding: 13px; font-size: 15px; font-weight: 700; cursor: pointer; transition: transform 140ms var(--ease-out); }
+  .card2 .btn:active { transform: scale(.97); }
+  .card2 .btn.secondary { background: rgba(255,255,255,.08); color: #fff; margin-top: 10px; }
+  .card2 .switch { margin-top: 16px; text-align: center; font-size: 13px; color: var(--muted); }
+  .card2 .switch a { color: #fff; cursor: pointer; font-weight: 600; border-bottom: 1px solid rgba(255,255,255,.3); }
+  .card2 .msg { margin-top: 12px; font-size: 13px; min-height: 16px; }
+  .card2 .msg.err { color: #ff6b6b; } .card2 .msg.ok { color: #4cd964; }
+  .card2 .x { position: absolute; top: 14px; right: 16px; font-size: 24px; color: var(--muted); cursor: pointer; line-height: 1; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } *, .modal, .card2 { transition-duration: .01ms !important; } }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <nav class="nav">
+    <a href="films.html">Films</a><span class="dot">&middot;</span>
+    <a href="archive.html">Archive</a><span class="dot">&middot;</span>
+    <a href="clips.html">Clips</a><span class="dot">&middot;</span>
+    <a href="requests.html">Requests</a><span class="dot">&middot;</span>
+    <a class="cta" href="feed.html">The Feed</a>
+  </nav>
+  <button id="accountBtn" title="Account">Log in</button>
+</header>
+
+<section class="hero" id="hero">
+  <video id="heroVideo" class="hero-video" muted loop playsinline autoplay></video>
+  <figure class="hero-portrait" id="heroPortrait">
+    <blockquote class="hp-quote" id="heroQuote"></blockquote>
+    <div class="hp-card">
+      <img id="heroPortraitImg" alt="">
+      <figcaption class="hp-name" id="heroPortraitName"></figcaption>
+    </div>
+  </figure>
+  <div class="hero-inner">
+    <div class="eyebrow" id="heroEyebrow">Feature</div>
+    <h1 id="heroTitle">FilmFeed</h1>
+    <p class="sub" id="heroSub"></p>
+    <a class="watch" id="heroWatch" href="#">
+      <span class="ring"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+      Read the interview
+    </a>
+  </div>
+</section>
+
+<section class="pillars">
+  <a class="pillar" href="films.html">
+    <span class="eyebrow">Explore</span>
+    <span class="ptitle">Films</span>
+    <span class="pdesc">The whole collection as an interactive globe — spin it, explore, and dive into any title.</span>
+    <span class="parrow">&rarr;</span>
+  </a>
+  <a class="pillar" href="archive.html">
+    <span class="eyebrow">Read &amp; watch</span>
+    <span class="ptitle">Archive</span>
+    <span class="pdesc">Premieres, interviews and features — everything we make, collected in one place.</span>
+    <span class="parrow">&rarr;</span>
+  </a>
+  <a class="pillar" href="feed.html">
+    <span class="eyebrow">Watch</span>
+    <span class="ptitle">The Feed</span>
+    <span class="pdesc">An endless, immersive cut of cinema — hand-picked moments, one swipe at a time.</span>
+    <span class="parrow">&rarr;</span>
+  </a>
+</section>
+
+<footer>
+  <div class="copy">&copy; 2026 FilmFeed &middot; A film &amp; video publication</div>
+</footer>
+
+<!-- Auth modal -->
+<div class="modal" id="authModal">
+  <div class="card2">
+    <div class="x" id="authClose">&times;</div>
+    <h2 id="authTitle">Log in</h2>
+    <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
+    <button class="btn gbtn" id="googleBtn" type="button">
+      <svg viewBox="0 0 48 48" width="17" height="17" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+      Continue with Google
+    </button>
+    <div class="ordiv"><span>or</span></div>
+    <label>Email</label>
+    <input id="authUser" type="email" autocomplete="email" placeholder="you@example.com">
+    <label>Password</label>
+    <input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+    <button class="btn" id="authSubmit">Log in</button>
+    <div class="msg" id="authMsg"></div>
+    <div class="switch" id="authSwitch">New here? <a>Create an account</a></div>
+  </div>
+</div>
+
+<!-- Profile modal -->
+<div class="modal" id="profileModal">
+  <div class="card2">
+    <div class="x" id="profClose">&times;</div>
+    <h2>Your profile</h2>
+    <div class="sub" id="profEmail"></div>
+    <label>Username (your login — can't be changed)</label>
+    <input id="profUsername" maxlength="30" placeholder="username" readonly style="opacity:.6;cursor:not-allowed;">
+    <label>Display name</label>
+    <input id="profDisplay" maxlength="50" placeholder="Display name">
+    <label>Bio</label>
+    <textarea id="profBio" maxlength="300" placeholder="A little about you…"></textarea>
+    <label>Avatar image URL (optional)</label>
+    <input id="profAvatar" placeholder="https://…">
+    <button class="btn" id="profSave">Save changes</button>
+    <div class="msg" id="profMsg"></div>
+    <button class="btn secondary" id="profLogout">Log out</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+console.log('FilmFeed home: publication-v6 (video hero + portrait reveal)');
+
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+// ---- Featured article hero ----
+// Publication-first: the hero plays the feature's video and reveals the
+// subject's portrait in the corner on hover. Films live on Films/Feed.
+(async () => {
+  let articles = [];
+  try { articles = await (await fetch('articles.json')).json(); } catch (e) {}
+  const a = articles.find(x => x.featured) || articles[0];
+  if (!a) return;
+
+  const hero = document.getElementById('hero');
+  const poster = a.hero_poster || a.still || a.cover || a.portrait;
+  if (poster) hero.style.backgroundImage = `url("${poster}")`;
+  document.getElementById('heroEyebrow').textContent = a.category || 'Feature';
+  document.getElementById('heroTitle').textContent = a.title;
+  document.getElementById('heroSub').textContent = a.dek || '';
+  document.getElementById('heroWatch').href = 'article.html?slug=' + encodeURIComponent(a.slug);
+
+  // Video background (mp4 or HLS). Falls back to the poster image if it can't play.
+  const v = document.getElementById('heroVideo');
+  if (a.hero_video && v) {
+    v.poster = poster || '';
+    const url = a.hero_video;
+    if (/\.m3u8($|\?)/i.test(url) && window.Hls && Hls.isSupported()) {
+      const hls = new Hls({ capLevelToPlayerSize: true, maxBufferLength: 10 });
+      hls.loadSource(url); hls.attachMedia(v);
+    } else {
+      v.src = url;
+    }
+    v.play().catch(() => {});
+    v.addEventListener('error', () => { v.style.display = 'none'; }); // poster shows through
+  } else if (v) {
+    v.style.display = 'none';
+  }
+
+  // Portrait that animates into the corner — on hover (desktop), or a beat
+  // after load (touch, where there is no hover).
+  if (a.portrait) {
+    const fig = document.getElementById('heroPortrait');
+    document.getElementById('heroPortraitImg').src = a.portrait;
+    document.getElementById('heroPortraitName').textContent = a.title;
+    const q = document.getElementById('heroQuote');
+    if (a.hero_quote) q.textContent = '“' + a.hero_quote + '”'; else q.style.display = 'none';
+    if (window.matchMedia('(hover: hover)').matches) {
+      // Desktop: reveal on hover.
+      hero.addEventListener('mouseenter', () => fig.classList.add('show'));
+      hero.addEventListener('mouseleave', () => fig.classList.remove('show'));
+    } else {
+      // Mobile: tap the hero to reveal (tap again to hide). Ignore taps on the
+      // "Read the interview" link so it still navigates.
+      hero.addEventListener('click', (e) => {
+        if (e.target.closest('#heroWatch')) return;
+        fig.classList.toggle('show');
+      });
+    }
+  }
+})();
+
+// ===================== ACCOUNTS (shared with the feed) =====================
+const SB_URL = 'https://dykfcvjdfuvsonswojgd.supabase.co';
+const SB_KEY = 'sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+let user = null, profile = null;
+
+async function loadProfile() {
+  if (!user) return;
+  const { data } = await sb.from('profiles').select('*').eq('id', user.id).maybeSingle();
+  profile = data || null;
+}
+function refreshAccountBtn() {
+  const b = document.getElementById('accountBtn');
+  const avatar = user && profile && profile.avatar_url;
+  if (avatar) { b.innerHTML = `<img src="${esc(avatar)}" alt="">`; b.style.background = 'rgba(255,255,255,.07)'; }
+  else { b.innerHTML = '<svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg>'; b.style.background = '#b9bdc2'; }
+  b.title = user ? 'Your profile' : 'Log in';
+}
+document.getElementById('accountBtn').addEventListener('click', () => { user ? (location.href='profile.html') : openAuth('login'); });
+
+// auth modal
+let authMode = 'login';
+const authModal = document.getElementById('authModal');
+function openAuth(mode){ authMode = mode||'login'; renderAuthMode(); document.getElementById('authMsg').textContent=''; authModal.classList.add('open'); }
+function renderAuthMode(){
+  const login = authMode === 'login';
+  document.getElementById('authTitle').textContent = login ? 'Log in' : 'Create account';
+  document.getElementById('authSub').textContent = login ? 'Welcome back to FilmFeed.' : 'Join FilmFeed to like, save, and review.';
+  document.getElementById('authSubmit').textContent = login ? 'Log in' : 'Sign up';
+  document.getElementById('authSwitch').innerHTML = login ? 'New here? <a>Create an account</a>' : 'Have an account? <a>Log in</a>';
+  document.getElementById('authPass').autocomplete = login ? 'current-password' : 'new-password';
+}
+document.getElementById('authClose').onclick = () => authModal.classList.remove('open');
+document.getElementById('authSwitch').onclick = () => { authMode = authMode==='login'?'signup':'login'; renderAuthMode(); };
+document.getElementById('authSubmit').onclick = submitAuth;
+document.getElementById('googleBtn').onclick = () => sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href } });
+document.getElementById('authPass').addEventListener('keydown', e => { if (e.key === 'Enter') submitAuth(); });
+async function resendVerify(email){
+  const msg = document.getElementById('authMsg');
+  const { error } = await sb.auth.resend({ type:'signup', email });
+  msg.className = error ? 'msg err' : 'msg ok';
+  msg.textContent = error ? error.message : 'Verification email sent again — check your inbox (and spam).';
+}
+async function submitAuth(){
+  const email = document.getElementById('authUser').value.trim();
+  const pass = document.getElementById('authPass').value;
+  const msg = document.getElementById('authMsg'); msg.className='msg'; msg.textContent='Working…';
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) { msg.className='msg err'; msg.textContent='Enter a valid email address.'; return; }
+  if (pass.length < 6) { msg.className='msg err'; msg.textContent='Password must be at least 6 characters.'; return; }
+  if (authMode==='signup') {
+    const { data, error } = await sb.auth.signUp({ email, password: pass, options:{ emailRedirectTo: location.origin } });
+    if (error) { msg.className='msg err'; msg.textContent = /registered|exists/i.test(error.message) ? 'That email already has an account — try logging in.' : error.message; return; }
+    if (!data.session) { msg.className='msg ok'; msg.textContent='Almost there — check your email and click the link to confirm your account, then log in.'; return; }
+    authModal.classList.remove('open');
+  } else {
+    const { error } = await sb.auth.signInWithPassword({ email, password: pass });
+    if (error) {
+      if (/confirm|verif/i.test(error.message)) { msg.className='msg err'; msg.innerHTML='Please confirm your email first. <a id="resendLink" style="color:#fff;cursor:pointer;text-decoration:underline">Resend link</a>'; const r=document.getElementById('resendLink'); if(r) r.onclick=()=>resendVerify(email); return; }
+      msg.className='msg err'; msg.textContent = /invalid login/i.test(error.message) ? 'Wrong email or password.' : error.message; return;
+    }
+    authModal.classList.remove('open');
+  }
+}
+
+// profile modal
+const profileModal = document.getElementById('profileModal');
+function openProfile(){
+  if (!user) return openAuth('login');
+  document.getElementById('profEmail').textContent = '@' + ((profile && profile.username) || '');
+  document.getElementById('profUsername').value = (profile && profile.username) || '';
+  document.getElementById('profDisplay').value = (profile && profile.display_name) || '';
+  document.getElementById('profBio').value = (profile && profile.bio) || '';
+  document.getElementById('profAvatar').value = (profile && profile.avatar_url) || '';
+  document.getElementById('profMsg').textContent = '';
+  profileModal.classList.add('open');
+}
+document.getElementById('profClose').onclick = () => profileModal.classList.remove('open');
+document.getElementById('profLogout').onclick = async () => { await sb.auth.signOut(); profileModal.classList.remove('open'); };
+document.getElementById('profSave').onclick = async () => {
+  const msg = document.getElementById('profMsg'); msg.className='msg'; msg.textContent='Saving…';
+  const updates = {
+    display_name: document.getElementById('profDisplay').value.trim() || null,
+    bio: document.getElementById('profBio').value.trim() || null,
+    avatar_url: document.getElementById('profAvatar').value.trim() || null
+  };
+  const { error } = await sb.from('profiles').update(updates).eq('id', user.id);
+  if (error) { msg.className='msg err'; msg.textContent = error.message; return; }
+  profile = Object.assign(profile || { id: user.id }, updates);
+  msg.className='msg ok'; msg.textContent='Saved!'; refreshAccountBtn();
+};
+
+// auth state — wire button immediately, load data outside the listener (no deadlock)
+sb.auth.onAuthStateChange((_e, session) => {
+  user = session?.user || null;
+  refreshAccountBtn();
+  if (user) { setTimeout(async () => { await loadProfile(); refreshAccountBtn(); }, 0); }
+  else profile = null;
+});
+refreshAccountBtn();
+// ===================== END ACCOUNTS =====================
+</script>
+</body>
+</html>
