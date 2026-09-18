@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmFeed — Profile</title>
+<style>
+  :root {
+    --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
+    --line:rgba(255,255,255,.12); --bg:#0a0a0a; --like:#ff3b5c; --save:#f5c451;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { max-width:1040px; margin:0 auto; padding:0 18px; }
+
+  header.masthead { position:sticky; top:0; z-index:60; background:rgba(10,10,10,.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .masthead .bar { position:relative; display:flex; align-items:center; justify-content:center; padding:14px 16px; }
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:3px; }
+  .wordmark b { font-weight:300; }
+  .back { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.07); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .back svg { width:17px; height:17px; fill:#fff; }
+  #accountBtn { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:#b9bdc2; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; }
+  #accountBtn img { width:100%; height:100%; object-fit:cover; }
+  #accountBtn svg { width:18px; height:18px; fill:#fff; }
+
+  /* Profile header */
+  .phead { display:flex; gap:20px; align-items:center; padding:34px 0 22px; flex-wrap:wrap; }
+  .pavatar { width:84px; height:84px; border-radius:50%; background:#b9bdc2 center/cover; flex:0 0 auto; display:flex; align-items:center; justify-content:center; border:1px solid var(--line); }
+  .pavatar svg { width:46px; height:46px; fill:#fff; }
+  .pinfo { flex:1; min-width:200px; }
+  .pinfo h1 { font-size:24px; font-weight:700; letter-spacing:-.3px; }
+  .pinfo .uname { color:var(--muted); font-size:14px; margin-top:2px; }
+  .pinfo .bio { color:rgba(255,255,255,.82); font-size:14px; line-height:1.5; margin-top:10px; max-width:560px; }
+  .editbtn { margin-top:14px; display:inline-block; padding:8px 16px; border:1px solid var(--line); border-radius:999px; font-size:12px; font-weight:600; letter-spacing:.04em; cursor:pointer; background:rgba(255,255,255,.05); transition:transform 140ms var(--ease-out), background 160ms ease; }
+  .editbtn:active { transform:scale(.97); }
+
+  .stats { display:flex; flex-wrap:wrap; gap:16px 26px; padding:6px 0 18px; border-bottom:1px solid var(--line); }
+  .editbtn.followbtn { background:#fff; color:#000; border-color:#fff; min-width:104px; text-align:center; }
+  .editbtn.followbtn.on { background:rgba(255,255,255,.05); color:#fff; border-color:var(--line); }
+  .stat { text-align:left; }
+  .stat .n { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+  .stat .l { font-size:11px; letter-spacing:.18em; text-transform:uppercase; color:var(--muted-2); margin-top:2px; }
+
+  /* Tabs */
+  .tabs { display:flex; gap:6px; padding:16px 0; position:sticky; top:59px; background:var(--bg); z-index:20; }
+  .tab { padding:9px 16px; border-radius:999px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border:1px solid transparent; transition:color 160ms ease, background 160ms ease; }
+  .tab.active { color:#fff; background:rgba(255,255,255,.1); }
+
+  /* Poster grid */
+  .grid { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; padding-bottom:60px; }
+  @media (min-width:560px){ .grid { grid-template-columns:repeat(4,1fr); } }
+  @media (min-width:820px){ .grid { grid-template-columns:repeat(6,1fr); } }
+  .pcard { position:relative; aspect-ratio:2/3; border-radius:9px; overflow:hidden; background:#1a1a1a center/cover; transition:transform 200ms var(--ease-out); }
+  .pcard:active { transform:scale(.98); }
+  @media (hover:hover){ .pcard:hover { transform:translateY(-3px); } }
+  .pcard .ttl { position:absolute; left:0; right:0; bottom:0; padding:18px 8px 7px; font-size:11px; line-height:1.25; background:linear-gradient(to top,rgba(0,0,0,.85),transparent); opacity:0; transition:opacity 200ms var(--ease-out); }
+  @media (hover:hover){ .pcard:hover .ttl { opacity:1; } }
+  .empty { color:var(--muted); font-size:14px; padding:30px 4px 60px; }
+  .center-note { text-align:center; color:var(--muted); padding:80px 20px; }
+  .center-note a { color:#fff; border-bottom:1px solid rgba(255,255,255,.4); cursor:pointer; }
+
+  /* Edit modal */
+  .modal { position:fixed; inset:0; z-index:120; background:rgba(0,0,0,.62); display:flex; align-items:center; justify-content:center; padding:20px; opacity:0; visibility:hidden; transition:opacity 220ms var(--ease-out), visibility 220ms; }
+  .modal.open { opacity:1; visibility:visible; backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); }
+  .card2 { position:relative; background:#0e0e0e; border:1px solid rgba(255,255,255,.1); border-radius:20px; padding:28px 24px; width:100%; max-width:360px; box-shadow:0 30px 80px rgba(0,0,0,.6); transform:scale(.95) translateY(8px); opacity:0; transition:transform 260ms var(--ease-out), opacity 220ms var(--ease-out); }
+  .modal.open .card2 { transform:none; opacity:1; }
+  .card2 .gbtn { display:flex; align-items:center; justify-content:center; gap:10px; margin-top:14px; }
+  .card2 .ordiv { display:flex; align-items:center; gap:12px; margin:16px 0 2px; color:var(--muted-2); font-size:11px; letter-spacing:.15em; text-transform:uppercase; }
+  .card2 .ordiv::before, .card2 .ordiv::after { content:""; flex:1; height:1px; background:rgba(255,255,255,.12); }
+  .card2 h2 { font-size:22px; font-weight:700; margin-bottom:5px; }
+  .card2 .sub { color:var(--muted); font-size:13px; margin-bottom:14px; }
+  .card2 label { display:block; font-size:11px; letter-spacing:.4px; text-transform:uppercase; color:var(--muted-2); margin:14px 0 6px; }
+  .card2 input, .card2 textarea { width:100%; background:#1a1a1a; border:1px solid rgba(255,255,255,.12); border-radius:11px; padding:12px 13px; color:#fff; font-size:14px; font-family:inherit; }
+  .card2 input:focus, .card2 textarea:focus { outline:none; border-color:rgba(255,255,255,.5); }
+  .card2 textarea { resize:vertical; min-height:64px; }
+  .card2 .btn { width:100%; margin-top:18px; background:#fff; color:#000; border:none; border-radius:11px; padding:13px; font-size:15px; font-weight:700; cursor:pointer; }
+  .card2 .btn.secondary { background:rgba(255,255,255,.08); color:#fff; margin-top:10px; }
+  .card2 .msg { margin-top:12px; font-size:13px; min-height:16px; }
+  .card2 .msg.err { color:#ff6b6b; } .card2 .msg.ok { color:#4cd964; }
+  .card2 .x { position:absolute; top:14px; right:16px; font-size:24px; color:var(--muted); cursor:pointer; }
+
+  /* Auth modal (for logged-out) */
+  .switch { margin-top:14px; text-align:center; font-size:13px; color:var(--muted); }
+  .switch a { color:#fff; cursor:pointer; font-weight:600; border-bottom:1px solid rgba(255,255,255,.3); }
+
+  /* Messages (clips shared to you) */
+  .mlist { padding-bottom:60px; }
+  .mcard { display:flex; gap:13px; align-items:center; padding:12px; border:1px solid var(--line); border-radius:12px;
+    margin-bottom:10px; cursor:pointer; background:rgba(255,255,255,.02); transition:background 160ms ease, transform 140ms var(--ease-out); }
+  .mcard:active { transform:scale(.99); }
+  @media (hover:hover){ .mcard:hover { background:rgba(255,255,255,.05); } }
+  .mthumb { width:74px; height:100px; border-radius:8px; background:#1a1a1a center/cover; flex:0 0 auto; position:relative; overflow:hidden; }
+  .mthumb .play { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; }
+  .mthumb .play svg { width:28px; height:28px; fill:#fff; filter:drop-shadow(0 1px 5px rgba(0,0,0,.7)); }
+  .minfo { flex:1; min-width:0; }
+  .minfo .mt { font-size:15px; font-weight:600; }
+  .minfo .mfrom { font-size:13px; color:var(--muted); margin-top:3px; }
+  .minfo .mtime { font-size:12px; color:var(--muted-2); margin-top:5px; font-variant-numeric:tabular-nums; }
+  .unreaddot { display:inline-block; width:7px; height:7px; border-radius:50%; background:var(--like); margin-left:5px; vertical-align:middle; }
+
+  /* Inline clip player */
+  .player { position:fixed; inset:0; z-index:130; background:rgba(0,0,0,.93); display:none; align-items:center; justify-content:center; }
+  .player.open { display:flex; }
+  .player video { max-width:100%; height:88vh; background:#000; }
+  .player .pclose { position:absolute; top:16px; right:18px; width:40px; height:40px; border-radius:50%; background:rgba(255,255,255,.12);
+    color:#fff; font-size:24px; display:flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
+    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <button id="accountBtn" title="Account"></button>
+  </div>
+</header>
+
+<main id="app"><div class="wrap"><p class="center-note">Loading…</p></div></main>
+
+<!-- Edit profile modal -->
+<div class="modal" id="profileModal"><div class="card2">
+  <div class="x" id="profClose">&times;</div>
+  <h2>Edit profile</h2>
+  <div class="sub" id="profEmail"></div>
+  <label>Username (your login — can't be changed)</label>
+  <input id="profUsername" readonly style="opacity:.6;cursor:not-allowed;">
+  <label>Display name</label><input id="profDisplay" maxlength="50" placeholder="Display name">
+  <label>Bio</label><textarea id="profBio" maxlength="300" placeholder="A little about you…"></textarea>
+  <label>Avatar image URL (optional)</label><input id="profAvatar" placeholder="https://…">
+  <button class="btn" id="profSave">Save changes</button>
+  <div class="msg" id="profMsg"></div>
+  <button class="btn secondary" id="profLogout">Log out</button>
+</div></div>
+
+<!-- Auth modal -->
+<div class="modal" id="authModal"><div class="card2">
+  <div class="x" id="authClose">&times;</div>
+  <h2 id="authTitle">Log in</h2>
+  <div class="sub" id="authSub">Welcome back to FilmFeed.</div>
+  <button class="btn gbtn" id="googleBtn" type="button"><svg viewBox="0 0 48 48" width="17" height="17" aria-hidden="true"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg> Continue with Google</button>
+  <div class="ordiv"><span>or</span></div>
+  <label>Email</label><input id="authUser" type="email" autocomplete="email" placeholder="you@example.com">
+  <label>Password</label><input id="authPass" type="password" autocomplete="current-password" placeholder="At least 6 characters">
+  <button class="btn" id="authSubmit">Log in</button>
+  <div class="msg" id="authMsg"></div>
+  <div class="switch" id="authSwitch">New here? <a>Create an account</a></div>
+</div></div>
+
+<!-- Inline clip player (for shared clips) -->
+<div class="player" id="player"><div class="pclose" id="playerClose">&times;</div><video id="playerVid" controls playsinline></video></div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+console.log('FilmFeed profile: v2 (messages)');
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+const PERSON = '<svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg>';
+
+const SB_URL='https://dykfcvjdfuvsonswojgd.supabase.co';
+const SB_KEY='sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz';
+const sb = window.supabase.createClient(SB_URL, SB_KEY);
+let user=null, myProfile=null;
+
+let FILMMAP = {};
+async function loadFilms(){ try{ const a=await (await fetch('films.json')).json(); a.forEach(f=>FILMMAP[f.slug]=f); }catch(e){} }
+
+const targetUsername = new URLSearchParams(location.search).get('u');
+let target = null;          // profile being viewed
+let lists = { watchlist:[], watched:[], likes:[], messages:[] };
+let activeTab = 'watchlist';
+let social = { followers:0, following:0, isFollowing:false };
+
+function timeAgo(ts){
+  const s=Math.floor((Date.now()-new Date(ts).getTime())/1000);
+  if(s<60) return 'now'; const m=Math.floor(s/60); if(m<60) return m+'m';
+  const h=Math.floor(m/60); if(h<24) return h+'h'; const d=Math.floor(h/24); if(d<7) return d+'d';
+  return new Date(ts).toLocaleDateString();
+}
+function thumbFromFile(file){ return file && /playlist\.m3u8/.test(file) ? file.replace(/playlist\.m3u8.*$/, 'thumbnail.jpg') : ''; }
+
+function refreshAccountBtn(){
+  const b=document.getElementById('accountBtn');
+  const a = user && myProfile && myProfile.avatar_url;
+  b.innerHTML = a ? `<img src="${esc(a)}">` : PERSON;
+  b.style.background = a ? 'rgba(255,255,255,.07)' : '#b9bdc2';
+}
+document.getElementById('accountBtn').onclick = () => { user ? (location.href='profile.html') : openAuth('login'); };
+
+async function loadProfileData(){
+  // Decide whose profile to show
+  if (targetUsername) {
+    const { data } = await sb.from('profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('username', targetUsername).maybeSingle();
+    target = data;
+  } else if (user) {
+    const { data } = await sb.from('profiles').select('id,username,display_name,bio,avatar_url,created_at').eq('id', user.id).maybeSingle();
+    target = data;
+  } else { target = null; }
+
+  if (!target) { renderNotFound(); return; }
+
+  const [uf, lk] = await Promise.all([
+    sb.from('user_films').select('film_slug,status').eq('user_id', target.id),
+    sb.from('film_likes').select('film_slug').eq('user_id', target.id)
+  ]);
+  lists.watchlist = (uf.data||[]).filter(r=>r.status==='watchlist').map(r=>r.film_slug);
+  lists.watched   = (uf.data||[]).filter(r=>r.status==='watched').map(r=>r.film_slug);
+  lists.likes     = (lk.data||[]).map(r=>r.film_slug);
+
+  // Follow counts (public) + whether I'm following this person
+  const [fr, fg, mine] = await Promise.all([
+    sb.from('follows').select('*',{count:'exact',head:true}).eq('following_id', target.id),
+    sb.from('follows').select('*',{count:'exact',head:true}).eq('follower_id', target.id),
+    (user && user.id !== target.id)
+      ? sb.from('follows').select('follower_id').eq('follower_id', user.id).eq('following_id', target.id).maybeSingle()
+      : Promise.resolve({ data:null })
+  ]);
+  social = { followers: fr.count||0, following: fg.count||0, isFollowing: !!(mine && mine.data) };
+
+  // Messages (clips shared TO you) — private, so only on your own profile.
+  if (user && target.id === user.id) {
+    const { data: msgs } = await sb.from('clip_shares')
+      .select('id,clip_id,film,year,start_t,end_t,file,note,created_at,read_at, sender:profiles!clip_shares_sender_id_fkey(username,display_name,avatar_url)')
+      .eq('recipient_id', user.id).order('created_at', { ascending:false }).limit(200);
+    lists.messages = msgs || [];
+  } else { lists.messages = []; }
+  render();
+}
+
+function renderNotFound(){
+  document.getElementById('app').innerHTML = targetUsername
+    ? `<div class="wrap"><p class="center-note">No user found for “${esc(targetUsername)}”.</p></div>`
+    : `<div class="wrap"><p class="center-note"><a id="loginLink">Log in</a> to see your profile, watchlist and likes.</p></div>`;
+  const l=document.getElementById('loginLink'); if(l) l.onclick=()=>openAuth('login');
+}
+
+function posterGrid(slugs){
+  if(!slugs.length) return `<div class="empty">Nothing here yet.</div>`;
+  return `<div class="grid">${slugs.map(s=>{
+    const f=FILMMAP[s]; const poster=f?f.poster_url:''; const ttl=f?`${esc(f.title)} (${esc(f.year)})`:esc(s);
+    return `<a class="pcard" href="film.html?slug=${encodeURIComponent(s)}" style="background-image:url('${esc(poster)}')"><div class="ttl">${ttl}</div></a>`;
+  }).join('')}</div>`;
+}
+
+function render(){
+  const isOwn = user && target && user.id===target.id;
+  const name = target.display_name || target.username;
+  const av = target.avatar_url;
+  document.title = `${name} — FilmFeed`;
+  document.getElementById('app').innerHTML = `
+    <div class="wrap">
+      <div class="phead">
+        <div class="pavatar" style="${av?`background-image:url('${esc(av)}')`:''}">${av?'':PERSON}</div>
+        <div class="pinfo">
+          <h1>${esc(name)}</h1>
+          <div class="uname">@${esc(target.username)}</div>
+          ${target.bio?`<div class="bio">${esc(target.bio)}</div>`:''}
+          ${isOwn?`<div class="editbtn" id="editBtn">Edit profile</div>`:`<div class="editbtn followbtn" id="followBtn">Follow</div>`}
+        </div>
+      </div>
+      <div class="stats">
+        <div class="stat"><div class="n">${lists.watched.length}</div><div class="l">Watched</div></div>
+        <div class="stat"><div class="n">${lists.watchlist.length}</div><div class="l">Watchlist</div></div>
+        <div class="stat"><div class="n">${lists.likes.length}</div><div class="l">Likes</div></div>
+        <div class="stat"><div class="n" id="followersN">${social.followers}</div><div class="l">Followers</div></div>
+        <div class="stat"><div class="n">${social.following}</div><div class="l">Following</div></div>
+      </div>
+      <div class="tabs">
+        <div class="tab" data-t="watchlist">Watchlist</div>
+        <div class="tab" data-t="watched">Watched</div>
+        <div class="tab" data-t="likes">Likes</div>
+        ${isOwn?`<div class="tab" data-t="messages">Messages${lists.messages.some(m=>!m.read_at)?` <span class="unreaddot"></span>`:''}</div>`:''}
+      </div>
+      <div id="gridArea"></div>
+    </div>`;
+  document.querySelectorAll('.tab').forEach(t => t.onclick = () => { activeTab = t.dataset.t; paintTab(); });
+  const eb=document.getElementById('editBtn'); if(eb) eb.onclick=openEdit;
+  const fb=document.getElementById('followBtn'); if(fb){ fb.onclick=toggleFollow; paintFollow(); }
+  paintTab();
+}
+
+// ---------- follow ----------
+function paintFollow(){
+  const b=document.getElementById('followBtn'); if(!b) return;
+  b.textContent = social.isFollowing ? 'Following' : 'Follow';
+  b.classList.toggle('on', social.isFollowing);
+  const n=document.getElementById('followersN'); if(n) n.textContent = social.followers;
+}
+async function toggleFollow(){
+  if(!user) return openAuth('login');
+  if(!target || target.id===user.id) return;
+  if(social.isFollowing){
+    social.isFollowing=false; social.followers=Math.max(0,social.followers-1); paintFollow();
+    await sb.from('follows').delete().eq('follower_id',user.id).eq('following_id',target.id);
+  } else {
+    social.isFollowing=true; social.followers++; paintFollow();
+    const {error}=await sb.from('follows').insert({follower_id:user.id, following_id:target.id});
+    if(error){ social.isFollowing=false; social.followers=Math.max(0,social.followers-1); paintFollow(); }
+  }
+}
+function paintTab(){
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.t===activeTab));
+  const area = document.getElementById('gridArea');
+  if (activeTab === 'messages') {
+    area.innerHTML = messageList();
+    area.querySelectorAll('.mcard').forEach(el => el.onclick = () => openPlayer(el.dataset.file));
+    markMessagesRead();
+  } else {
+    area.innerHTML = posterGrid(lists[activeTab]);
+  }
+}
+
+const PLAY_ICON = '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+function messageList(){
+  if(!lists.messages.length) return `<div class="empty">No clips shared with you yet. Send one to yourself from the feed’s share button!</div>`;
+  return `<div class="mlist">${lists.messages.map(m=>{
+    const s=m.sender||{}; const who = s.username?('@'+esc(s.username)):'someone';
+    const thumb=thumbFromFile(m.file);
+    return `<div class="mcard" data-file="${esc(m.file||'')}">
+      <div class="mthumb" style="${thumb?`background-image:url('${esc(thumb)}')`:''}"><div class="play">${PLAY_ICON}</div></div>
+      <div class="minfo">
+        <div class="mt">${esc(m.film||'Clip')}${m.year?` (${esc(m.year)})`:''}</div>
+        <div class="mfrom">from ${who}</div>
+        <div class="mtime">${esc(m.start_t||'')}${m.end_t?` – ${esc(m.end_t)}`:''} · ${timeAgo(m.created_at)}</div>
+      </div>
+    </div>`;
+  }).join('')}</div>`;
+}
+async function markMessagesRead(){
+  const unread = lists.messages.filter(m=>!m.read_at).map(m=>m.id);
+  if(!unread.length) return;
+  const now = new Date().toISOString();
+  lists.messages.forEach(m=>{ if(!m.read_at) m.read_at=now; });
+  const dot=document.querySelector('.tab[data-t="messages"] .unreaddot'); if(dot) dot.remove();
+  await sb.from('clip_shares').update({ read_at: now }).in('id', unread);
+}
+
+// ---------- inline clip player ----------
+const player=document.getElementById('player'), playerVid=document.getElementById('playerVid');
+let playerHls=null;
+function openPlayer(file){
+  if(!file) return;
+  player.classList.add('open');
+  if(window.Hls && Hls.isSupported() && /\.m3u8($|\?)/i.test(file)){
+    playerHls=new Hls(); playerHls.loadSource(file); playerHls.attachMedia(playerVid);
+    playerHls.on(Hls.Events.MANIFEST_PARSED, ()=>playerVid.play().catch(()=>{}));
+  } else { playerVid.src=file; playerVid.play().catch(()=>{}); }
+}
+function closePlayer(){
+  player.classList.remove('open'); playerVid.pause();
+  if(playerHls){ playerHls.destroy(); playerHls=null; }
+  playerVid.removeAttribute('src'); playerVid.load();
+}
+document.getElementById('playerClose').onclick=closePlayer;
+player.onclick=e=>{ if(e.target===player) closePlayer(); };
+
+// ---------- edit profile ----------
+const profileModal=document.getElementById('profileModal');
+function openEdit(){
+  if(!user) return openAuth('login');
+  document.getElementById('profEmail').textContent='@'+(myProfile&&myProfile.username||'');
+  document.getElementById('profUsername').value=(myProfile&&myProfile.username)||'';
+  document.getElementById('profDisplay').value=(myProfile&&myProfile.display_name)||'';
+  document.getElementById('profBio').value=(myProfile&&myProfile.bio)||'';
+  document.getElementById('profAvatar').value=(myProfile&&myProfile.avatar_url)||'';
+  document.getElementById('profMsg').textContent='';
+  profileModal.classList.add('open');
+}
+document.getElementById('profClose').onclick=()=>profileModal.classList.remove('open');
+document.getElementById('profLogout').onclick=async()=>{ await sb.auth.signOut(); location.href='index.html'; };
+document.getElementById('profSave').onclick=async()=>{
+  const msg=document.getElementById('profMsg'); msg.className='msg'; msg.textContent='Saving…';
+  const updates={ display_name:document.getElementById('profDisplay').value.trim()||null, bio:document.getElementById('profBio').value.trim()||null, avatar_url:document.getElementById('profAvatar').value.trim()||null };
+  const {error}=await sb.from('profiles').update(updates).eq('id',user.id);
+  if(error){ msg.className='msg err'; msg.textContent=error.message; return; }
+  myProfile=Object.assign(myProfile||{id:user.id}, updates);
+  if(target && target.id===user.id) target=Object.assign(target, updates);
+  msg.className='msg ok'; msg.textContent='Saved!';
+  refreshAccountBtn(); render();
+};
+
+// ---------- auth ----------
+const authModal=document.getElementById('authModal'); let authMode='login';
+function openAuth(m){ authMode=m||'login'; renderAuthMode(); document.getElementById('authMsg').textContent=''; authModal.classList.add('open'); }
+function renderAuthMode(){ const l=authMode==='login'; document.getElementById('authTitle').textContent=l?'Log in':'Create account'; document.getElementById('authSub').textContent=l?'Welcome back to FilmFeed.':'Join FilmFeed to track films.'; document.getElementById('authSubmit').textContent=l?'Log in':'Sign up'; document.getElementById('authSwitch').innerHTML=l?'New here? <a>Create an account</a>':'Have an account? <a>Log in</a>'; document.getElementById('authPass').autocomplete=l?'current-password':'new-password'; }
+document.getElementById('authClose').onclick=()=>authModal.classList.remove('open');
+document.getElementById('authSwitch').onclick=()=>{ authMode=authMode==='login'?'signup':'login'; renderAuthMode(); };
+document.getElementById('googleBtn').onclick=()=>sb.auth.signInWithOAuth({ provider:'google', options:{ redirectTo: location.href } });
+async function resendVerify(email){ const msg=document.getElementById('authMsg'); const {error}=await sb.auth.resend({type:'signup',email}); msg.className=error?'msg err':'msg ok'; msg.textContent=error?error.message:'Verification email sent again — check your inbox (and spam).'; }
+document.getElementById('authSubmit').onclick=async()=>{
+  const email=document.getElementById('authUser').value.trim();
+  const pw=document.getElementById('authPass').value; const msg=document.getElementById('authMsg'); msg.className='msg'; msg.textContent='Working…';
+  if(!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){ msg.className='msg err'; msg.textContent='Enter a valid email address.'; return; }
+  if(pw.length<6){ msg.className='msg err'; msg.textContent='Password must be at least 6 characters.'; return; }
+  if(authMode==='signup'){
+    const {data,error}=await sb.auth.signUp({email,password:pw,options:{emailRedirectTo:location.origin+'/profile.html'}});
+    if(error){ msg.className='msg err'; msg.textContent=/registered|exists/i.test(error.message)?'That email already has an account — try logging in.':error.message; return; }
+    if(!data.session){ msg.className='msg ok'; msg.textContent='Almost there — check your email and click the link to confirm your account, then log in.'; return; }
+    authModal.classList.remove('open');
+  } else {
+    const {error}=await sb.auth.signInWithPassword({email,password:pw});
+    if(error){ if(/confirm|verif/i.test(error.message)){ msg.className='msg err'; msg.innerHTML='Please confirm your email first. <a id="resendLink" style="color:#fff;cursor:pointer;text-decoration:underline">Resend link</a>'; const r=document.getElementById('resendLink'); if(r) r.onclick=()=>resendVerify(email); return; } msg.className='msg err'; msg.textContent=/invalid login/i.test(error.message)?'Wrong email or password.':error.message; return; }
+    authModal.classList.remove('open');
+  }
+};
+
+sb.auth.onAuthStateChange((_e,session)=>{
+  user=session?.user||null;
+  refreshAccountBtn();
+  if(user){ setTimeout(async()=>{ const {data}=await sb.from('profiles').select('*').eq('id',user.id).maybeSingle(); myProfile=data; refreshAccountBtn(); await loadProfileData(); },0); }
+  else { myProfile=null; loadProfileData(); }
+});
+
+(async()=>{ await loadFilms(); /* auth listener triggers loadProfileData */ })();
+</script>
+</body>
+</html>

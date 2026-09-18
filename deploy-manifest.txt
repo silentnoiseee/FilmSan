@@ -1,0 +1,23 @@
+# Public hosting root. One repository-relative path per line.
+.htaccess
+index.html
+archive.html
+article.html
+clips.html
+feed.html
+film.html
+films.html
+profile.html
+requests.html
+share.php
+thumb.php
+tmdb_search.php
+articles.json
+films.json
+gifs.json
+videos.js
+assets/ademola-falomo.jpg
+assets/bronze-still.jpg
+assets/flowers-still.jpg
+assets/jimi-agboola-2.jpg
+assets/jimi-agboola.jpg

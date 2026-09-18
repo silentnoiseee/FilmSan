@@ -1,0 +1,18 @@
+# Cinematic Roll — staging/runtime rules
+<Files ".runtime-config.php">
+  Require all denied
+</Files>
+
+<FilesMatch "^(videos\.js|films\.json|articles\.json|gifs\.json)$">
+  Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+
+<FilesMatch "\.(html)$">
+  Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|mp4|svg|ico)$">
+  Header set Cache-Control "public, max-age=604800"
+</FilesMatch>
+
+Options -Indexes

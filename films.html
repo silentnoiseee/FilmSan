@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>FilmFeed — Films</title>
+<style>
+  :root {
+    --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
+    --line:rgba(255,255,255,.12); --bg:#070707; --like:#ff3b5c;
+    --ease-out:cubic-bezier(0.23,1,0.32,1);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { height:100%; overflow:hidden; }
+  body { background:radial-gradient(130% 90% at 50% 38%, #161616 0%, #070707 70%); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+
+  header.masthead { position:fixed; top:0; left:0; right:0; z-index:60; }
+  .masthead .bar { position:relative; display:flex; align-items:center; justify-content:center; padding:14px 16px; }
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:3px; }
+  .wordmark b { font-weight:300; }
+  .back { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.07); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .back svg { width:17px; height:17px; fill:#fff; }
+  #accountBtn { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:#b9bdc2; border:1px solid var(--line); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+  #accountBtn svg { width:18px; height:18px; fill:#fff; }
+  nav.nav { display:flex; gap:16px; justify-content:center; padding:0 16px 12px; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); }
+  nav.nav a.on { color:#fff; }
+  nav.nav .dot { color:var(--muted-2); }
+
+  #globe { position:fixed; inset:0; z-index:1; cursor:grab; touch-action:none; }
+  #globe:active { cursor:grabbing; }
+  #globe .poster3d {
+    width:110px; height:165px; border-radius:8px; overflow:hidden;
+    background:#1a1a1a center/cover; box-shadow:0 10px 30px rgba(0,0,0,.55);
+    border:1px solid rgba(255,255,255,.08);
+    transition:transform 260ms var(--ease-out), box-shadow 260ms var(--ease-out), opacity 400ms ease;
+    will-change:transform; cursor:pointer; position:relative;
+    backface-visibility:hidden; -webkit-backface-visibility:hidden; /* far side hides instead of ghosting through */
+  }
+  #globe .poster3d::after { content:""; position:absolute; inset:0; box-shadow:inset 0 0 0 1.5px rgba(255,255,255,0); transition:box-shadow 220ms var(--ease-out); border-radius:8px; }
+  @media (hover:hover){ #globe .poster3d:hover { transform:scale(1.12); box-shadow:0 16px 44px rgba(0,0,0,.7); } #globe .poster3d:hover::after { box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.6); } }
+  #globe .poster3d .pt { position:absolute; left:0; right:0; bottom:0; padding:16px 7px 6px; font-size:9.5px; font-weight:600; line-height:1.2; background:linear-gradient(to top,rgba(0,0,0,.8),transparent); opacity:0; transition:opacity 220ms var(--ease-out); }
+  @media (hover:hover){ #globe .poster3d:hover .pt { opacity:1; } }
+
+  .hint { position:fixed; left:0; right:0; bottom:26px; z-index:5; text-align:center; color:var(--muted-2); font-size:11px; letter-spacing:.28em; text-transform:uppercase; pointer-events:none; transition:opacity 400ms ease; }
+  .title-eyebrow { position:fixed; top:84px; left:0; right:0; z-index:5; text-align:center; color:var(--muted-2); font-size:11px; letter-spacing:.4em; text-transform:uppercase; pointer-events:none; }
+
+  /* ---- search over the globe ---- */
+  #searchWrap { position:fixed; top:108px; left:50%; transform:translateX(-50%); z-index:50; width:min(420px, calc(100vw - 40px)); }
+  #searchWrap input { width:100%; background:rgba(16,16,16,.78); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+    border:1px solid var(--line); border-radius:999px; padding:12px 44px 12px 20px; color:#fff; font-size:14px; font-family:inherit;
+    transition:border-color 160ms ease; }
+  #searchWrap input:focus { outline:none; border-color:rgba(255,255,255,.45); }
+  #searchWrap input::placeholder { color:var(--muted-2); }
+  #searchWrap .sicon { position:absolute; right:16px; top:50%; transform:translateY(-50%); width:16px; height:16px; pointer-events:none; }
+  #searchWrap .sicon svg { width:16px; height:16px; fill:none; stroke:var(--muted-2); stroke-width:2; stroke-linecap:round; }
+  #searchWrap .clr { position:absolute; right:12px; top:50%; transform:translateY(-50%); width:24px; height:24px; border-radius:50%;
+    display:none; align-items:center; justify-content:center; color:var(--muted); font-size:17px; cursor:pointer; background:rgba(255,255,255,.08); }
+  #searchWrap.hasq .clr { display:flex; } #searchWrap.hasq .sicon { display:none; }
+  #sres { position:absolute; left:0; right:0; top:calc(100% + 8px); background:rgba(16,16,16,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+    border:1px solid var(--line); border-radius:16px; overflow:hidden; display:none; box-shadow:0 18px 50px rgba(0,0,0,.6); }
+  #sres.open { display:block; }
+  #sres .row { display:flex; gap:12px; align-items:center; padding:9px 12px; cursor:pointer; }
+  #sres .row:hover, #sres .row.hi { background:rgba(255,255,255,.08); }
+  #sres .row .p { width:34px; height:51px; border-radius:5px; background:#222 center/cover; flex-shrink:0; }
+  #sres .row .t { font-size:14px; font-weight:600; }
+  #sres .row .y { color:var(--muted); font-size:12px; margin-top:2px; }
+  #sres .none { padding:14px; color:var(--muted-2); font-size:13px; text-align:center; }
+  #globe .poster3d.dim { opacity:.07; pointer-events:none; }
+
+  /* Film card overlay (Emil: blur-masked, scale+fade, ease-out) */
+  #scrim { position:fixed; inset:0; z-index:80; background:rgba(7,7,7,.55); opacity:0; visibility:hidden; transition:opacity 300ms var(--ease-out), visibility 300ms; backdrop-filter:blur(0px); }
+  #scrim.open { opacity:1; visibility:visible; backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); }
+  #card { position:fixed; z-index:90; left:50%; top:50%; width:min(680px,92vw); max-height:88vh; overflow-y:auto;
+    transform:translate(-50%,-50%) scale(.92); opacity:0; visibility:hidden;
+    background:#101010; border:1px solid rgba(255,255,255,.1); border-radius:22px; box-shadow:0 40px 100px rgba(0,0,0,.7);
+    transition:transform 360ms var(--ease-out), opacity 300ms var(--ease-out), visibility 360ms; }
+  #card.open { transform:translate(-50%,-50%) scale(1); opacity:1; visibility:visible; }
+  #card .x { position:absolute; top:14px; right:16px; z-index:3; width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.1); display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:20px; color:#fff; }
+  #card .top { display:flex; gap:20px; padding:24px; }
+  #card .cp { width:128px; flex:0 0 auto; aspect-ratio:2/3; border-radius:12px; background:#222 center/cover; box-shadow:0 12px 30px rgba(0,0,0,.5); }
+  #card .ci { flex:1; min-width:0; }
+  #card h2 { font-size:26px; font-weight:300; letter-spacing:-.5px; line-height:1.05; }
+  #card .facts { margin-top:9px; color:var(--muted); font-size:13px; display:flex; flex-wrap:wrap; gap:6px 12px; }
+  #card .facts .star { color:#f5c451; }
+  #card .genres { margin-top:11px; display:flex; flex-wrap:wrap; gap:6px; }
+  #card .genre { font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); border:1px solid var(--line); border-radius:999px; padding:4px 9px; }
+  #card .ov { padding:0 24px; font-size:14px; line-height:1.6; color:rgba(255,255,255,.88); }
+  #card .sec { padding:20px 24px 0; }
+  #card .sec h3 { font-size:11px; letter-spacing:.28em; text-transform:uppercase; color:var(--muted-2); margin-bottom:12px; }
+  #card .castrow { display:flex; gap:13px; overflow-x:auto; padding-bottom:6px; scrollbar-width:none; }
+  #card .castrow::-webkit-scrollbar { display:none; }
+  #card .cc { flex:0 0 auto; width:84px; text-align:center; }
+  #card .cc .ph { width:84px; height:84px; border-radius:50%; background:#222 center/cover; margin:0 auto 7px; }
+  #card .cc .nm { font-size:11.5px; font-weight:600; line-height:1.25; }
+  #card .cc .ch { font-size:10.5px; color:var(--muted-2); margin-top:2px; }
+  #card .acts { display:flex; gap:10px; flex-wrap:wrap; padding:22px 24px 26px; }
+  #card .btn { display:inline-flex; align-items:center; gap:8px; padding:12px 18px; border-radius:999px; font-size:13px; font-weight:600; cursor:pointer; transition:transform 140ms var(--ease-out), opacity 160ms ease; }
+  #card .btn:active { transform:scale(.97); }
+  #card .btn.primary { background:#fff; color:#000; }
+  #card .btn.ghost { background:rgba(255,255,255,.08); color:#fff; border:1px solid var(--line); }
+  #card .btn svg { width:16px; height:16px; fill:currentColor; }
+
+  @media (prefers-reduced-motion: reduce){ #globe .poster3d, #card, #scrim { transition-duration:.01ms; } }
+  @media (max-width:560px){ #card .top { flex-direction:column; align-items:center; text-align:center; } #card .ci { text-align:center; } #card .facts, #card .genres { justify-content:center; } }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
+    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <a id="accountBtn" href="profile.html" title="Account"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg></a>
+  </div>
+  <nav class="nav"><a class="on" href="films.html">Films</a><span class="dot">&middot;</span><a href="archive.html">Archive</a><span class="dot">&middot;</span><a href="feed.html">The Feed</a><span class="dot">&middot;</span><a href="requests.html">Requests</a></nav>
+</header>
+
+<div class="title-eyebrow">The Collection</div>
+
+<div id="searchWrap">
+  <input id="filmSearch" placeholder="Search the collection&hellip;" autocomplete="off" spellcheck="false">
+  <span class="sicon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.8-4.8"/></svg></span>
+  <span class="clr" id="searchClear" title="Clear">&times;</span>
+  <div id="sres"></div>
+</div>
+
+<div id="globe"></div>
+<div class="hint" id="hint">Drag to explore &middot; Tap a film</div>
+
+<div id="scrim"></div>
+<div id="card">
+  <div class="x" id="cardClose">&times;</div>
+  <div id="cardBody"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
+<script>
+console.log('FilmFeed films globe: v1');
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+let films = [];
+let scene, camera, renderer, group;
+let vel = { x: 0, y: 0 };            // rotation velocity
+let dragging = false, didDrag = false, last = { x: 0, y: 0 }, downAt = 0;
+let RADIUS = 300;                    // computed in init() from screen + collection size
+let POSTER_H = 165;                  // ditto
+
+init();
+
+async function init() {
+  try { films = await (await fetch('films.json')).json(); } catch (e) { films = []; }
+  if (!window.THREE || !THREE.CSS3DRenderer) { document.getElementById('hint').textContent = 'Could not load 3D engine'; return; }
+
+  const N = films.length || 1;
+  // Posters shrink on phones, and the sphere GROWS with the collection.
+  // On a Fibonacci sphere, neighbouring poster centres sit ~R*sqrt(4π/N)
+  // apart — keep that comfortably above a poster's height so nothing
+  // ever touches, no matter how many films the library holds.
+  const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 640;
+  const PW = MOBILE ? 80 : 110, PH = Math.round(PW * 1.5);
+  const spacing = PH * 1.15;
+  RADIUS = Math.max(MOBILE ? 210 : 280, spacing / Math.sqrt(4 * Math.PI / Math.max(N, 2)));
+  POSTER_H = PH;
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 8000);
+  // Pull the camera back far enough that the whole sphere (plus a poster of
+  // margin) fits the narrow dimension of the screen — this is what stops the
+  // crowded, cropped feel on portrait phones. Desktop keeps the classic view.
+  const fitZ = (RADIUS + PH) / (Math.tan(Math.PI / 6) * camera.aspect) * 1.05;
+  camera.position.z = Math.max(RADIUS * 2.7, camera.aspect < 1 ? fitZ : 0);
+  renderer = new THREE.CSS3DRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  document.getElementById('globe').appendChild(renderer.domElement);
+
+  group = new THREE.Group();
+  scene.add(group);
+
+  films.forEach((f, i) => {
+    const el = document.createElement('div');
+    el.className = 'poster3d';
+    el.style.width = PW + 'px';
+    el.style.height = PH + 'px';
+    el.style.backgroundImage = `url('${esc(f.poster_url || '')}')`;
+    el.innerHTML = `<div class="pt">${esc(f.title)}</div>`;
+    el.addEventListener('click', (ev) => { ev.stopPropagation(); if (!didDrag) openCard(f); });
+    f._el = el;                                  // so search can spotlight/dim it
+
+    // Fibonacci sphere distribution
+    const phi = Math.acos(1 - 2 * (i + 0.5) / N);
+    const theta = Math.PI * (1 + Math.sqrt(5)) * (i + 0.5);
+    const x = Math.sin(phi) * Math.cos(theta);
+    const y = Math.sin(phi) * Math.sin(theta);
+    const z = Math.cos(phi);
+
+    const obj = new THREE.CSS3DObject(el);
+    obj.position.set(x * RADIUS, y * RADIUS, z * RADIUS);
+    obj.lookAt(obj.position.clone().multiplyScalar(2)); // face outward
+    group.add(obj);
+  });
+
+  // ---- interaction ----
+  const dom = renderer.domElement;
+  const onDown = (e) => { dragging = true; didDrag = false; downAt = Date.now(); const p = pt(e); last = p; };
+  const onMove = (e) => {
+    if (!dragging) return;
+    const p = pt(e);
+    const dx = p.x - last.x, dy = p.y - last.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) didDrag = true;
+    vel.y = dx * 0.0045; vel.x = dy * 0.0045;
+    group.rotation.y += vel.y; group.rotation.x += vel.x;
+    last = p;
+    document.getElementById('hint').style.opacity = '0';
+  };
+  const onUp = () => { dragging = false; };
+  dom.addEventListener('mousedown', onDown); window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
+  dom.addEventListener('touchstart', onDown, { passive: true }); window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
+  window.addEventListener('resize', onResize);
+
+  animate();
+}
+
+function pt(e){ const t = e.touches ? e.touches[0] : e; return { x: t.clientX, y: t.clientY }; }
+function onResize(){
+  camera.aspect = window.innerWidth/window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  const fitZ = (RADIUS + POSTER_H) / (Math.tan(Math.PI / 6) * camera.aspect) * 1.05;
+  camera.position.z = Math.max(RADIUS * 2.7, camera.aspect < 1 ? fitZ : 0);
+}
+
+function animate(){
+  requestAnimationFrame(animate);
+  if (!dragging) {
+    // momentum + gentle idle auto-rotation
+    vel.y *= 0.95; vel.x *= 0.95;
+    group.rotation.y += vel.y + 0.0012;
+    group.rotation.x += vel.x;
+  }
+  // keep posters upright-ish (counter-tilt clamp)
+  group.rotation.x = Math.max(-0.6, Math.min(0.6, group.rotation.x));
+  renderer.render(scene, camera);
+}
+
+// ---- film card ----
+const scrim = document.getElementById('scrim'), card = document.getElementById('card');
+function watchProvidersHTML(wp){
+  const r = wp && (wp.US || wp.GB || wp.CA || wp.AU); if(!r) return '';
+  const grp=(l,a)=>a&&a.length?`<div style="margin-bottom:6px"><span style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted-2)">${l}</span> <span style="font-size:13px;color:rgba(255,255,255,.85)">${a.map(p=>esc(p.name)).join(', ')}</span></div>`:'';
+  return grp('Stream',r.stream)+grp('Rent',r.rent)+grp('Buy',r.buy);
+}
+function openCard(f){
+  const cast = (f.cast_list||[]).map(c=>`<div class="cc"><div class="ph" style="background-image:url('${esc(c.photo_url||'')}')"></div><div class="nm">${esc(c.name)}</div>${c.character?`<div class="ch">${esc(c.character)}</div>`:''}</div>`).join('');
+  const prov = watchProvidersHTML(f.watch_providers);
+  document.getElementById('cardBody').innerHTML = `
+    <div class="top">
+      <div class="cp" style="background-image:url('${esc(f.poster_url||'')}')"></div>
+      <div class="ci">
+        <h2>${esc(f.title)}</h2>
+        <div class="facts">
+          <span>${esc(f.year)}</span>
+          ${f.runtime?`<span>&middot; ${Math.floor(f.runtime/60)}h ${f.runtime%60}m</span>`:''}
+          ${f.tmdb_rating?`<span>&middot; <span class="star">&#9733;</span> ${Number(f.tmdb_rating).toFixed(1)}</span>`:''}
+          ${f.director?`<span>&middot; Dir. ${esc(f.director)}</span>`:''}
+        </div>
+        <div class="genres">${(f.genres||[]).map(g=>`<span class="genre">${esc(g)}</span>`).join('')}</div>
+      </div>
+    </div>
+    <div class="ov">${esc(f.overview||'')}</div>
+    ${cast?`<div class="sec"><h3>Cast</h3><div class="castrow">${cast}</div></div>`:''}
+    ${prov?`<div class="sec"><h3>Where to watch</h3>${prov}</div>`:''}
+    <div class="acts">
+      <a class="btn primary" href="feed.html#film=${encodeURIComponent(f.feed_key||'')}"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg> Watch in the feed</a>
+      <a class="btn ghost" href="film.html?slug=${encodeURIComponent(f.slug||'')}">Full film page</a>
+    </div>`;
+  scrim.classList.add('open'); card.classList.add('open');
+}
+function closeCard(){ scrim.classList.remove('open'); card.classList.remove('open'); }
+document.getElementById('cardClose').onclick = closeCard;
+scrim.onclick = closeCard;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCard(); });
+
+// ---- search: spotlight the globe + result list ----
+const sIn = document.getElementById('filmSearch');
+const sWrap = document.getElementById('searchWrap');
+const sRes = document.getElementById('sres');
+let sMatches = [], sHi = -1;
+
+function filmHay(f){ return [f.title, f.year, f.director].concat(f.genres || []).join(' ').toLowerCase(); }
+
+function applySearch(){
+  const q = sIn.value.trim().toLowerCase();
+  sWrap.classList.toggle('hasq', !!q);
+  sHi = -1;
+  if (!q) {
+    films.forEach(f => f._el && f._el.classList.remove('dim'));
+    sRes.classList.remove('open'); sRes.innerHTML = '';
+    return;
+  }
+  sMatches = films.filter(f => filmHay(f).includes(q));
+  // matching posters stay lit on the globe; everything else fades back
+  films.forEach(f => f._el && f._el.classList.toggle('dim', !sMatches.includes(f)));
+  sRes.innerHTML = sMatches.length
+    ? sMatches.slice(0, 8).map((f, i) => `
+        <div class="row" data-i="${i}">
+          <div class="p" style="background-image:url('${esc(f.poster_url || '')}')"></div>
+          <div><div class="t">${esc(f.title)}</div><div class="y">${esc(f.year || '')}${f.director ? ' &middot; ' + esc(f.director) : ''}</div></div>
+        </div>`).join('')
+    : '<div class="none">Nothing in the collection matches that &mdash; try the <a href="requests.html" style="text-decoration:underline">Request Desk</a>.</div>';
+  sRes.classList.add('open');
+  sRes.querySelectorAll('.row').forEach(r => r.onclick = () => openCard(sMatches[+r.dataset.i]));
+}
+sIn.addEventListener('input', applySearch);
+sIn.addEventListener('focus', () => { if (sIn.value.trim()) applySearch(); });
+sIn.addEventListener('keydown', e => {
+  const rows = [...sRes.querySelectorAll('.row')];
+  if (e.key === 'ArrowDown') { e.preventDefault(); sHi = Math.min(rows.length - 1, sHi + 1); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); sHi = Math.max(0, sHi - 1); }
+  rows.forEach((r, i) => r.classList.toggle('hi', i === sHi));
+  if (e.key === 'Enter') { const pick = sHi >= 0 ? sMatches[sHi] : sMatches[0]; if (pick) openCard(pick); }
+  if (e.key === 'Escape') { e.stopPropagation(); clearSearch(); sIn.blur(); }
+});
+function clearSearch(){ sIn.value = ''; applySearch(); }
+document.getElementById('searchClear').onclick = clearSearch;
+document.addEventListener('click', e => { if (!e.target.closest('#searchWrap')) sRes.classList.remove('open'); });
+</script>
+</body>
+</html>

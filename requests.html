@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FilmFeed — Request a Film</title>
+<style>
+  :root { --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4); --line:rgba(255,255,255,.12); --bg:#0a0a0a; --ease-out:cubic-bezier(0.23,1,0.32,1); }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  body { background:var(--bg); color:var(--fg); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  a { color:inherit; text-decoration:none; }
+  .wrap { max-width:920px; margin:0 auto; padding:0 20px; }
+  .eyebrow { font-size:11px; letter-spacing:.32em; text-transform:uppercase; color:var(--muted-2); }
+
+  header.masthead { position:sticky; top:0; z-index:60; background:rgba(10,10,10,.85); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line); }
+  .masthead .bar { position:relative; display:flex; align-items:center; justify-content:center; padding:14px 16px; }
+  .wordmark { font-size:20px; font-weight:800; letter-spacing:3px; } .wordmark b { font-weight:300; }
+  .back { position:absolute; left:16px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:50%; background:rgba(255,255,255,.07); border:1px solid var(--line); display:flex; align-items:center; justify-content:center; }
+  .back svg { width:17px; height:17px; fill:#fff; }
+  nav.nav { display:flex; gap:16px; justify-content:center; padding:0 16px 12px; font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted); }
+  nav.nav a.on { color:#fff; } nav.nav .dot { color:var(--muted-2); }
+
+  .lead { padding:54px 0 26px; text-align:center; }
+  .lead h1 { font-size:clamp(32px,8vw,56px); font-weight:300; letter-spacing:-1px; }
+  .lead p { margin:16px auto 0; max-width:540px; color:var(--muted); font-size:15px; line-height:1.6; }
+
+  /* ---- search + typeahead ---- */
+  .searchbox { position:relative; max-width:560px; margin:8px auto 0; }
+  .searchbox input { width:100%; background:#161616; border:1px solid var(--line); border-radius:14px; padding:16px 18px; color:#fff; font-size:16px; font-family:inherit; }
+  .searchbox input:focus { outline:none; border-color:rgba(255,255,255,.4); }
+  .drop { position:absolute; left:0; right:0; top:calc(100% + 8px); z-index:40; background:#161616; border:1px solid var(--line); border-radius:14px; overflow:hidden; display:none; box-shadow:0 18px 50px rgba(0,0,0,.6); }
+  .drop.open { display:block; }
+  .opt { display:flex; gap:12px; align-items:center; padding:10px 12px; cursor:pointer; }
+  .opt:hover, .opt.hi { background:rgba(255,255,255,.07); }
+  .opt img, .opt .noimg { width:38px; height:57px; border-radius:6px; object-fit:cover; background:#242424; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--muted-2); font-size:15px; }
+  .opt .txt { flex:1; min-width:0; }
+  .opt .t { font-size:15px; font-weight:600; }
+  .opt .y { color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .tag-inlib { flex-shrink:0; font-size:9.5px; letter-spacing:.08em; text-transform:uppercase; background:#fff; color:#000; border-radius:999px; padding:4px 9px; font-weight:700; }
+  .drop .note { padding:12px 14px; color:var(--muted-2); font-size:13px; }
+
+  /* ---- your picks ---- */
+  .section { padding:44px 0 8px; }
+  .section .lbl { font-size:11px; letter-spacing:.3em; text-transform:uppercase; color:var(--muted-2); margin-bottom:16px; text-align:center; }
+  .picks { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; }
+  .pick { position:relative; width:150px; border:1px solid var(--line); border-radius:14px; overflow:hidden; background:rgba(255,255,255,.02); animation:rise 420ms var(--ease-out) both; }
+  .pick img { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; background:#1a1a1a; }
+  .pick .noimg { width:100%; aspect-ratio:2/3; display:flex; align-items:center; justify-content:center; color:var(--muted-2); background:#1a1a1a; font-size:26px; }
+  .pick .cap { padding:10px 12px 12px; }
+  .pick .t { font-size:13.5px; font-weight:600; line-height:1.3; }
+  .pick .y { color:var(--muted-2); font-size:11.5px; margin-top:3px; }
+  .pick .x { position:absolute; top:8px; right:8px; width:26px; height:26px; border-radius:50%; background:rgba(0,0,0,.65); border:1px solid rgba(255,255,255,.25); color:#fff; font-size:15px; display:flex; align-items:center; justify-content:center; cursor:pointer; }
+  .pick.empty { border-style:dashed; background:none; }
+  .pick.empty .slot { width:100%; aspect-ratio:2/3; display:flex; flex-direction:column; gap:8px; align-items:center; justify-content:center; color:var(--muted-2); font-size:12px; letter-spacing:.06em; }
+  .pick.empty .slot .plus { font-size:26px; color:var(--muted); }
+  .loginhint { text-align:center; color:var(--muted); font-size:14px; padding:26px 0 4px; }
+  .loginhint a { color:#fff; font-weight:600; text-decoration:underline; }
+
+  /* ---- community shelf ---- */
+  .shelf { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:14px; padding-bottom:70px; }
+  .sh { position:relative; display:block; border:1px solid var(--line); border-radius:12px; overflow:hidden; background:rgba(255,255,255,.02); }
+  a.sh { transition:transform 160ms var(--ease-out); } a.sh:active { transform:scale(.98); }
+  .sh .inlib { position:absolute; top:8px; right:8px; background:#fff; color:#000; border-radius:999px; font-size:9.5px; font-weight:700; padding:4px 9px; letter-spacing:.06em; text-transform:uppercase; }
+  .sh img, .sh .noimg { width:100%; aspect-ratio:2/3; object-fit:cover; display:block; background:#1a1a1a; }
+  .sh .noimg { display:flex; align-items:center; justify-content:center; color:var(--muted-2); font-size:22px; }
+  .sh .cap { padding:9px 10px 11px; }
+  .sh .t { font-size:12.5px; font-weight:600; line-height:1.3; }
+  .sh .y { color:var(--muted-2); font-size:11px; margin-top:2px; }
+  .sh .votes { position:absolute; top:8px; left:8px; background:rgba(0,0,0,.7); border:1px solid rgba(255,255,255,.25); border-radius:999px; font-size:11px; font-weight:700; padding:4px 9px; }
+  .empty-note { text-align:center; color:var(--muted-2); font-size:14px; padding:30px 0 70px; }
+
+  #toast { position:fixed; left:50%; bottom:40px; transform:translateX(-50%) translateY(20px); z-index:200; background:rgba(20,20,20,.96); color:#fff; font-size:14px; font-weight:500; padding:12px 18px; border-radius:12px; box-shadow:0 8px 30px rgba(0,0,0,.5); opacity:0; pointer-events:none; transition:opacity .25s, transform .25s var(--ease-out); max-width:80vw; text-align:center; }
+  #toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+
+  @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+  footer { padding:46px 20px 60px; text-align:center; color:var(--muted-2); font-size:11px; letter-spacing:.1em; border-top:1px solid var(--line); }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="bar">
+    <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
+    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+  </div>
+  <nav class="nav"><a href="films.html">Films</a><span class="dot">&middot;</span><a href="archive.html">Archive</a><span class="dot">&middot;</span><a href="feed.html">The Feed</a><span class="dot">&middot;</span><a class="on" href="requests.html">Requests</a></nav>
+</header>
+
+<div class="wrap">
+  <div class="lead">
+    <div class="eyebrow">The Request Desk</div>
+    <h1>Build the library with us.</h1>
+    <p>This is a library, not a warehouse — it grows one loved film at a time. Tell us the three films you most want on FilmFeed, and see what the rest of the community is asking for.</p>
+    <div class="searchbox">
+      <input id="q" placeholder="Search for a film&hellip;" autocomplete="off" spellcheck="false">
+      <div class="drop" id="drop"></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="lbl">Your three picks</div>
+    <div class="picks" id="picks"></div>
+    <div class="loginhint" id="loginhint" style="display:none">
+      <a href="feed.html">Log in on the feed</a> to save your picks — then come back here.
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="lbl">Most requested by the community</div>
+  </div>
+  <div class="shelf" id="shelf"></div>
+  <div class="empty-note" id="shelfEmpty" style="display:none">No requests yet — yours could be the first.</div>
+</div>
+
+<div id="toast"></div>
+<footer>&copy; 2026 FilmFeed &middot; A film &amp; video publication</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+const sb = window.supabase.createClient(
+  'https://dykfcvjdfuvsonswojgd.supabase.co',
+  'sb_publishable_iiq__E3kX-J7BzX_FN1nmg_mV5fLhiz'
+);
+
+let user = null;
+let myPicks = [];           // rows from film_requests for this user
+const MAX_PICKS = 3;
+
+// ---- library index: which TMDB films are already on FilmFeed ----
+// films.json carries the tmdb_id for every film in the library, so we can
+// tag search results and shelf items that are already watchable.
+const LIB = { ids: new Set(), keys: new Set(), slugById: new Map() };
+const LIB_READY = fetch('films.json').then(r => r.json()).then(arr => {
+  (arr || []).forEach(f => {
+    if (f.tmdb_id) { LIB.ids.add(+f.tmdb_id); if (f.slug) LIB.slugById.set(+f.tmdb_id, f.slug); }
+    LIB.keys.add(String(f.title || '').toLowerCase() + '|' + String(f.year || ''));
+  });
+}).catch(() => {});
+function inLibrary(id, title, year) {
+  return LIB.ids.has(+id) || LIB.keys.has(String(title || '').toLowerCase() + '|' + String(year || ''));
+}
+
+let toastTimer;
+function toast(msg){ const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>t.classList.remove('show'),2400); }
+
+// ---- typeahead ----
+// Backed by TMDB via our own proxy (tmdb_search.php), so the index is the
+// same canonical film database the rest of the site uses. Every option shows
+// poster + year — five films with the same title are five distinct rows.
+const q = document.getElementById('q');
+const drop = document.getElementById('drop');
+let debounce = null, lastQuery = '', results = [], hi = -1;
+
+q.addEventListener('input', () => {
+  clearTimeout(debounce);
+  const val = q.value.trim();
+  if (val.length < 2) { closeDrop(); return; }
+  debounce = setTimeout(() => search(val), 220);
+});
+q.addEventListener('keydown', e => {
+  if (!drop.classList.contains('open')) return;
+  const opts = [...drop.querySelectorAll('.opt')];
+  if (e.key === 'ArrowDown') { e.preventDefault(); hi = Math.min(opts.length-1, hi+1); paintHi(opts); }
+  if (e.key === 'ArrowUp')   { e.preventDefault(); hi = Math.max(0, hi-1); paintHi(opts); }
+  if (e.key === 'Enter' && hi >= 0 && results[hi]) { e.preventDefault(); addPick(results[hi]); }
+  if (e.key === 'Escape') closeDrop();
+});
+function paintHi(opts){ opts.forEach((o,i)=>o.classList.toggle('hi', i===hi)); }
+document.addEventListener('click', e => { if (!e.target.closest('.searchbox')) closeDrop(); });
+function closeDrop(){ drop.classList.remove('open'); drop.innerHTML=''; hi=-1; results=[]; }
+
+async function search(val){
+  lastQuery = val;
+  try {
+    const res = await (await fetch('tmdb_search.php?q=' + encodeURIComponent(val))).json();
+    if (val !== lastQuery) return;           // a newer keystroke superseded this one
+    results = res; hi = -1;
+    if (!res.length) { drop.innerHTML = '<div class="note">No films found for that title.</div>'; drop.classList.add('open'); return; }
+    await LIB_READY;
+    drop.innerHTML = res.map((m,i) => `
+      <div class="opt" data-i="${i}">
+        ${m.poster ? `<img src="${esc(m.poster)}" alt="" loading="lazy">` : '<div class="noimg">🎬</div>'}
+        <div class="txt"><div class="t">${esc(m.title)}</div><div class="y">${esc(m.year || 'Year unknown')}</div></div>
+        ${inLibrary(m.id, m.title, m.year) ? '<span class="tag-inlib">In the library</span>' : ''}
+      </div>`).join('');
+    drop.classList.add('open');
+    drop.querySelectorAll('.opt').forEach(el => el.onclick = () => addPick(results[+el.dataset.i]));
+  } catch (e) {
+    drop.innerHTML = '<div class="note">Search is unavailable right now — try again in a moment.</div>';
+    drop.classList.add('open');
+  }
+}
+
+// ---- picks ----
+function renderPicks(){
+  const box = document.getElementById('picks');
+  const hint = document.getElementById('loginhint');
+  hint.style.display = user ? 'none' : 'block';
+  let html = myPicks.map(p => `
+    <div class="pick">
+      ${p.poster ? `<img src="${esc(p.poster)}" alt="">` : '<div class="noimg">🎬</div>'}
+      <div class="x" data-id="${esc(p.id)}" title="Remove">&times;</div>
+      <div class="cap"><div class="t">${esc(p.title)}</div><div class="y">${esc(p.year || '')}</div></div>
+    </div>`).join('');
+  for (let i = myPicks.length; i < MAX_PICKS; i++) {
+    html += `<div class="pick empty"><div class="slot"><span class="plus">+</span><span>${user ? 'Search above' : 'Log in to pick'}</span></div></div>`;
+  }
+  box.innerHTML = html;
+  box.querySelectorAll('.x').forEach(x => x.onclick = () => removePick(x.dataset.id));
+}
+
+async function addPick(m){
+  closeDrop(); q.value = '';
+  if (inLibrary(m.id, m.title, m.year)) {
+    const slug = LIB.slugById.get(+m.id);
+    toast(`“${m.title}” is already in the library — go watch it!`);
+    if (slug) setTimeout(() => location.href = 'film.html?slug=' + encodeURIComponent(slug), 1400);
+    return;
+  }
+  if (!user) { toast('Log in on the feed first, then come back to save picks.'); return; }
+  if (myPicks.length >= MAX_PICKS) { toast('You already have 3 picks — remove one to swap it.'); return; }
+  if (myPicks.some(p => p.tmdb_id === m.id)) { toast('That film is already in your picks.'); return; }
+  const { data, error } = await sb.from('film_requests')
+    .insert({ user_id: user.id, tmdb_id: m.id, title: m.title, year: m.year, poster: m.poster })
+    .select().single();
+  if (error) { toast(/limit/i.test(error.message) ? 'You already have 3 picks.' : 'Couldn’t save that pick.'); return; }
+  myPicks.push(data);
+  renderPicks(); loadShelf();
+  toast(`“${m.title}” added to your picks`);
+}
+
+async function removePick(id){
+  const { error } = await sb.from('film_requests').delete().eq('id', id);
+  if (error) { toast('Couldn’t remove that pick.'); return; }
+  myPicks = myPicks.filter(p => p.id !== id);
+  renderPicks(); loadShelf();
+}
+
+// ---- community shelf ----
+async function loadShelf(){
+  const [{ data, error }] = await Promise.all([sb.rpc('film_request_counts'), LIB_READY]);
+  const shelf = document.getElementById('shelf');
+  const empty = document.getElementById('shelfEmpty');
+  if (error || !data || !data.length) { shelf.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  // Films that made it into the library get a badge and link straight to
+  // their film page — the request became real.
+  shelf.innerHTML = data.map(f => {
+    const lib = inLibrary(f.tmdb_id, f.title, f.year);
+    const slug = LIB.slugById.get(+f.tmdb_id) || '';
+    const inner = `
+      ${f.poster ? `<img src="${esc(f.poster)}" alt="" loading="lazy">` : '<div class="noimg">🎬</div>'}
+      <div class="votes">${f.votes} ${+f.votes === 1 ? 'vote' : 'votes'}</div>
+      ${lib ? '<div class="inlib">In the library</div>' : ''}
+      <div class="cap"><div class="t">${esc(f.title)}</div><div class="y">${esc(f.year || '')}</div></div>`;
+    return (lib && slug)
+      ? `<a class="sh" href="film.html?slug=${encodeURIComponent(slug)}">${inner}</a>`
+      : `<div class="sh">${inner}</div>`;
+  }).join('');
+}
+
+// ---- boot ----
+(async () => {
+  try { const { data } = await sb.auth.getSession(); user = data.session?.user || null; } catch(e){}
+  if (user) {
+    const { data } = await sb.from('film_requests').select('*').eq('user_id', user.id).order('created_at');
+    myPicks = data || [];
+  }
+  renderPicks();
+  loadShelf();
+})();
+sb.auth.onAuthStateChange((_e, session) => { user = session?.user || null; renderPicks(); });
+</script>
+</body>
+</html>

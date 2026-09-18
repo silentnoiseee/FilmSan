@@ -1,0 +1,37 @@
+# Local source media and generated clip folders
+*.mp4
+*.MP4
+*.mkv
+*.MKV
+*.webm
+*.mov
+*.m4v
+*_clips/
+
+# Runtime credentials and local configuration
+bunny_config.json
+tmdb_config.json
+.runtime-config.php
+.env
+.env.*
+!.env.example
+
+# Generated deployment output
+.deploy/
+
+# Local logs, reports, caches, and editor files
+*.log
+clip_check_report.txt
+*.tmp
+*.bak
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Local homepage comparison copies
+index.*-backup.html
+index.publication-backup.html
+
+# Local-only media tooling outputs
+fix_titles.log
+ingest_debug.log
