@@ -305,10 +305,10 @@ function applySearch(){
   films.forEach(f => f._el && f._el.classList.toggle('dim', !sMatches.includes(f)));
   sRes.innerHTML = sMatches.length
     ? sMatches.slice(0, 8).map((f, i) => `
-        <div class="row" data-i="${i}">
+        <button type="button" class="row" data-i="${i}" aria-label="Open ${esc(f.title)} (${esc(f.year||'')})">
           <div class="p" style="background-image:url('${esc(f.poster_url || '')}')"></div>
           <div><div class="t">${esc(f.title)}</div><div class="y">${esc(f.year || '')}${f.director ? ' &middot; ' + esc(f.director) : ''}</div></div>
-        </div>`).join('')
+        </button>`).join('')
     : '<div class="none">Nothing in the collection matches that &mdash; try the <a href="requests.html" style="text-decoration:underline">Request Desk</a>.</div>';
   sRes.classList.add('open');
   sRes.querySelectorAll('.row').forEach(r => r.onclick = () => openCard(sMatches[+r.dataset.i]));

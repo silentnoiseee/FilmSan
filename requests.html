@@ -175,7 +175,9 @@ function closeDrop(){ drop.classList.remove('open'); drop.innerHTML=''; hi=-1; r
 async function search(val){
   lastQuery = val;
   try {
-    const res = await (await fetch('tmdb_search.php?q=' + encodeURIComponent(val))).json();
+    const response = await fetch('tmdb_search.php?q=' + encodeURIComponent(val));
+    if(!response.ok) throw new Error('Film search service unavailable');
+    const res = await response.json();
     if (val !== lastQuery) return;           // a newer keystroke superseded this one
     results = res; hi = -1;
     if (!res.length) { drop.innerHTML = '<div class="note">No films found for that title.</div>'; drop.classList.add('open'); return; }

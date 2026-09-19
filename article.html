@@ -116,7 +116,8 @@ const slug = new URLSearchParams(location.search).get('slug');
   });
   if(a.pullquote && quoteAt >= body.length){ html = `<div class="pullquote"><p>&ldquo;${esc(a.pullquote)}&rdquo;</p></div>` + html; }
 
-  const byline = [a.author ? 'By ' + esc(a.author) : '', a.location ? esc(a.location) : '', a.date ? fmtDate(a.date) : '']
+  const author = /^filmfeed$/i.test(a.author||'') ? 'Cinematic Roll' : a.author;
+  const byline = [author ? 'By ' + esc(author) : '', a.location ? esc(a.location) : '', a.date ? fmtDate(a.date) : '']
     .filter(Boolean).map(t=>`<span>${t}</span>`).join('<span class="sep">&middot;</span>');
 
   app.innerHTML = `

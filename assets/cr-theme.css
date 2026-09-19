@@ -37,6 +37,8 @@ h1,h2,.lead h1,.arthead h1,.pinfo h1,#card h2{font-family:"Instrument Serif",Geo
 
 input,textarea{background:#11110f!important;border-color:var(--cr-line)!important;color:var(--cr-ink)!important}
 input:focus,textarea:focus{border-color:var(--cr-acid)!important;box-shadow:0 0 0 2px rgba(215,255,69,.12)}
+#sres .row{width:100%;border:0;background:transparent;color:var(--cr-ink);text-align:left;font:inherit}
+#sres .row:focus-visible{outline:1px solid var(--cr-acid);outline-offset:-1px}
 button,.btn,.act,.shuffle,.editbtn,.tab{font-family:"DM Mono",monospace!important}
 .btn.primary,.act.watch,.reviewbox button,.card2 .btn:not(.secondary),.editbtn.followbtn,.tag-inlib,.sh .inlib{background:var(--cr-acid)!important;border-color:var(--cr-acid)!important;color:#090909!important}
 .btn.ghost,.act,.shuffle,.editbtn,.tab{border-color:var(--cr-line)!important;background:rgba(241,238,230,.04)!important;color:var(--cr-ink)!important}
