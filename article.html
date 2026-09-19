@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FilmFeed — Feature</title>
+<title>Cinematic Roll — Feature</title>
 <style>
   :root{
     --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
@@ -65,13 +65,14 @@
   .center-note{padding:90px 20px;text-align:center;color:var(--muted);}
   @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto;}}
 </style>
+<link rel="stylesheet" href="assets/cr-theme.css">
 </head>
 <body>
 
 <header class="masthead">
   <div class="bar">
     <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
-    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <a class="wordmark" href="index.html">Cinematic <b>Roll</b></a>
     <a id="accountBtn" href="profile.html" title="Account"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg></a>
   </div>
 </header>
@@ -90,7 +91,7 @@ const slug = new URLSearchParams(location.search).get('slug');
   const a = articles.find(x => x.slug === slug) || (!slug && articles[0]) || null;
   const app = document.getElementById('app');
   if(!a){ app.innerHTML = '<div class="wrap"><p class="center-note">Article not found.</p></div>'; return; }
-  document.title = `${a.title} — FilmFeed`;
+  document.title = `${a.title} — Cinematic Roll`;
 
   const body = a.body || [];
   // Insert the pull quote after the 4th paragraph, the video (if any) around
@@ -127,7 +128,7 @@ const slug = new URLSearchParams(location.search).get('slug');
         <div class="byline">${byline}</div>
       </div>
       ${a.portrait?`<figure class="lead"><img src="${esc(a.portrait)}" alt="${esc(a.title)}"></figure>`:''}
-      <div class="body">${html}<div class="endmark">&mdash; FilmFeed</div></div>
+      <div class="body">${html}<div class="endmark">&mdash; Cinematic Roll</div></div>
       <div class="more">
         <div class="lbl">Keep exploring</div>
         <div class="links">
@@ -137,7 +138,7 @@ const slug = new URLSearchParams(location.search).get('slug');
         </div>
       </div>
     </div>
-    <footer><div class="wm">Film<b>Feed</b></div><div class="copy">&copy; 2026 FilmFeed &middot; A film &amp; video publication</div></footer>`;
+    <footer><div class="wm">Cinematic <b>Roll</b></div><div class="copy">&copy; 2026 Cinematic Roll &middot; Black cinema in motion</div></footer>`;
 })();
 </script>
 </body>

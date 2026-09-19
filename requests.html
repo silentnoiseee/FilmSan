@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>FilmFeed — Request a Film</title>
+<title>Cinematic Roll — Request a Film</title>
 <style>
   :root { --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4); --line:rgba(255,255,255,.12); --bg:#0a0a0a; --ease-out:cubic-bezier(0.23,1,0.32,1); }
   * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
@@ -75,13 +75,14 @@
   @keyframes rise { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
   footer { padding:46px 20px 60px; text-align:center; color:var(--muted-2); font-size:11px; letter-spacing:.1em; border-top:1px solid var(--line); }
 </style>
+<link rel="stylesheet" href="assets/cr-theme.css">
 </head>
 <body>
 
 <header class="masthead">
   <div class="bar">
     <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
-    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <a class="wordmark" href="index.html">Cinematic <b>Roll</b></a>
   </div>
   <nav class="nav"><a href="films.html">Films</a><span class="dot">&middot;</span><a href="archive.html">Archive</a><span class="dot">&middot;</span><a href="feed.html">The Feed</a><span class="dot">&middot;</span><a class="on" href="requests.html">Requests</a></nav>
 </header>
@@ -90,7 +91,7 @@
   <div class="lead">
     <div class="eyebrow">The Request Desk</div>
     <h1>Build the library with us.</h1>
-    <p>This is a library, not a warehouse — it grows one loved film at a time. Tell us the three films you most want on FilmFeed, and see what the rest of the community is asking for.</p>
+    <p>This is a library, not a warehouse — it grows one loved film at a time. Tell us the three films you most want on Cinematic Roll, and see what the rest of the community is asking for.</p>
     <div class="searchbox">
       <input id="q" placeholder="Search for a film&hellip;" autocomplete="off" spellcheck="false">
       <div class="drop" id="drop"></div>
@@ -113,7 +114,7 @@
 </div>
 
 <div id="toast"></div>
-<footer>&copy; 2026 FilmFeed &middot; A film &amp; video publication</footer>
+<footer>&copy; 2026 Cinematic Roll &middot; Black cinema in motion</footer>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
@@ -128,7 +129,7 @@ let user = null;
 let myPicks = [];           // rows from film_requests for this user
 const MAX_PICKS = 3;
 
-// ---- library index: which TMDB films are already on FilmFeed ----
+// ---- library index: which TMDB films are already on Cinematic Roll ----
 // films.json carries the tmdb_id for every film in the library, so we can
 // tag search results and shelf items that are already watchable.
 const LIB = { ids: new Set(), keys: new Set(), slugById: new Map() };

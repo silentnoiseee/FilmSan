@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>FilmFeed — Films</title>
+<title>Cinematic Roll — Films</title>
 <style>
   :root {
     --fg:#fff; --muted:rgba(255,255,255,.58); --muted-2:rgba(255,255,255,.4);
@@ -104,13 +104,14 @@
   @media (prefers-reduced-motion: reduce){ #globe .poster3d, #card, #scrim { transition-duration:.01ms; } }
   @media (max-width:560px){ #card .top { flex-direction:column; align-items:center; text-align:center; } #card .ci { text-align:center; } #card .facts, #card .genres { justify-content:center; } }
 </style>
+<link rel="stylesheet" href="assets/cr-theme.css">
 </head>
 <body>
 
 <header class="masthead">
   <div class="bar">
     <a class="back" href="index.html" title="Home"><svg viewBox="0 0 24 24"><path d="M15.5 4 8 12l7.5 8"/></svg></a>
-    <a class="wordmark" href="index.html">Film<b>Feed</b></a>
+    <a class="wordmark" href="index.html">Cinematic <b>Roll</b></a>
     <a id="accountBtn" href="profile.html" title="Account"><svg viewBox="0 0 24 24"><path d="M12 12a5 5 0 1 0 0-10 5 5 0 0 0 0 10zm0 2c-5 0-9 2.5-9 6v1h18v-1c0-3.5-4-6-9-6z"/></svg></a>
   </div>
   <nav class="nav"><a class="on" href="films.html">Films</a><span class="dot">&middot;</span><a href="archive.html">Archive</a><span class="dot">&middot;</span><a href="feed.html">The Feed</a><span class="dot">&middot;</span><a href="requests.html">Requests</a></nav>
@@ -137,7 +138,7 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
 <script>
-console.log('FilmFeed films globe: v1');
+console.log('Cinematic Roll films globe: v1');
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 let films = [];
