@@ -30,7 +30,7 @@
   .shuffle:active{ transform:scale(.96); } @media (hover:hover){ .shuffle:hover{ background:rgba(255,255,255,.1); } }
   .shuffle svg{ width:15px; height:15px; fill:currentColor; }
 
-  .wall{ display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:9px; padding:0 12px 70px; }
+  .wall{ display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; padding:0 10px 70px; }
   .tile{ position:relative; aspect-ratio:16/9; border-radius:10px; overflow:hidden; background:#101010; cursor:pointer;
          transition:transform 220ms var(--ease-out); }
   .tile:active{ transform:scale(.99); }
@@ -38,12 +38,8 @@
   .tile .pf{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .tile video{ position:absolute; inset:0; width:100%; height:100%; object-fit:cover; opacity:0; transition:opacity 300ms var(--ease-out); }
   .tile.playing video{ opacity:1; }
-  .tile .lab{ position:absolute; left:0; right:0; bottom:0; padding:22px 11px 9px; z-index:2;
-              background:linear-gradient(to top, rgba(0,0,0,.86), transparent); opacity:0; transition:opacity 220ms var(--ease-out); }
-  .tile .lab .t{ font-size:13px; font-weight:600; letter-spacing:.2px; }
-  .tile .lab .y{ font-size:11px; color:rgba(255,255,255,.6); margin-top:1px; font-variant-numeric:tabular-nums; }
-  @media (hover:hover){ .tile:hover .lab{ opacity:1; } }
-  @media (hover:none){ .tile .lab{ opacity:1; } }
+  @media(max-width:900px){.wall{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:600px){.wall{gap:5px;padding:0 5px 60px}}
 
   .empty{ text-align:center; color:var(--muted); padding:80px 24px 90px; line-height:1.7; }
   .empty code{ background:rgba(255,255,255,.08); padding:2px 7px; border-radius:6px; font-size:13px; color:#fff; }
@@ -79,6 +75,7 @@
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function slugify(film, year){ return String(film).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + year; }
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+const BLACK_TITLES=new Set(["My Father's Shadow","Gang Tapes","Belly","Touki Bouki","Mother of George","Black Girl","Sinners","Waves","A Haunted House"]);
 
 let GIFS = [];
 const wall = document.getElementById('wall');
@@ -87,10 +84,10 @@ function tileEl(g){
   const el = document.createElement('a');
   el.className = 'tile';
   el.href = 'film.html?slug=' + encodeURIComponent(slugify(g.film, g.year));
+  el.setAttribute('aria-label',`Open ${g.film} (${g.year})`);
   el.innerHTML =
     `${g.poster ? `<img class="pf" src="${esc(g.poster)}" alt="" loading="lazy" decoding="async">` : ''}
-     <video muted playsinline preload="none" data-src="${esc(g.src)}"${g.loop?` data-loop="${+g.loop}"`:''}></video>
-     <div class="lab"><div class="t">${esc(g.film)}</div><div class="y">${esc(g.year)}${g.start?` &middot; ${esc(g.start)}`:''}</div></div>`;
+     <video muted playsinline preload="none" data-src="${esc(g.src)}"${g.loop?` data-loop="${+g.loop}"`:''}></video>`;
   return el;
 }
 
@@ -98,8 +95,7 @@ function tileEl(g){
 // MP4 (hand-made gifs). Only in-view tiles play, with a hard cap on how many run
 // at once — a wall of clips must never exhaust the device's video decoders.
 let io;
-const isTouch = !window.matchMedia('(hover:hover)').matches;
-const MAX_LIVE = isTouch ? 3 : 8;   // desktop is hover-driven (~1); this is a safety net
+const MAX_LIVE = 8;
 const live = new Set();
 
 function attach(tile){
@@ -160,16 +156,10 @@ function render(){
   io = new IntersectionObserver(entries => {
     entries.forEach(e => {
       if (!e.isIntersecting) detach(e.target);
-      else if (isTouch) attach(e.target);     // touch: autoplay what's on screen
+      else attach(e.target);
     });
-  }, { rootMargin: '100px 0px', threshold: 0.25 });
+  }, { rootMargin: '0px', threshold: 0.15 });
   tiles.forEach(t => io.observe(t));
-
-  // Desktop: hover to play (keeps it to ~one at a time, no decoder pressure).
-  if (!isTouch) tiles.forEach(t => {
-    t.addEventListener('mouseenter', () => attach(t));
-    t.addEventListener('mouseleave', () => detach(t));
-  });
 }
 
 document.getElementById('shuffleBtn').onclick = render;
@@ -177,6 +167,7 @@ document.getElementById('shuffleBtn').onclick = render;
 (async () => {
   try { GIFS = await (await fetch('gifs.json')).json(); } catch(e) { GIFS = []; }
   if(!Array.isArray(GIFS)) GIFS = [];
+  GIFS = GIFS.filter(g=>BLACK_TITLES.has(g.film)||String(g.film||'').startsWith('Eyimofe'));
   render();
 })();
 </script>

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="films-page-root">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -106,7 +106,7 @@
 </style>
 <link rel="stylesheet" href="assets/cr-theme.css">
 </head>
-<body>
+<body class="films-page">
 
 <header class="masthead">
   <div class="bar">
@@ -127,7 +127,7 @@
 </div>
 
 <div id="globe"></div>
-<div class="hint" id="hint">Drag to explore &middot; Tap a film</div>
+<div class="hint" id="hint">Select a film to explore</div>
 
 <div id="scrim"></div>
 <div id="card">
@@ -135,114 +135,30 @@
   <div id="cardBody"></div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS3DRenderer.js"></script>
 <script>
-console.log('Cinematic Roll films globe: v1');
+console.log('Cinematic Roll film catalog: v2');
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 let films = [];
-let scene, camera, renderer, group;
-let vel = { x: 0, y: 0 };            // rotation velocity
-let dragging = false, didDrag = false, last = { x: 0, y: 0 }, downAt = 0;
-let RADIUS = 300;                    // computed in init() from screen + collection size
-let POSTER_H = 165;                  // ditto
+const BLACK_TITLES=new Set(["My Father's Shadow","Gang Tapes","Belly","Touki Bouki","Mother of George","Black Girl","Sinners","Waves","A Haunted House","Eyimofe (This Is My Desire)"]);
 
 init();
 
 async function init() {
   try { films = await (await fetch('films.json')).json(); } catch (e) { films = []; }
-  if (!window.THREE || !THREE.CSS3DRenderer) { document.getElementById('hint').textContent = 'Could not load 3D engine'; return; }
-
-  const N = films.length || 1;
-  // Posters shrink on phones, and the sphere GROWS with the collection.
-  // On a Fibonacci sphere, neighbouring poster centres sit ~R*sqrt(4π/N)
-  // apart — keep that comfortably above a poster's height so nothing
-  // ever touches, no matter how many films the library holds.
-  const MOBILE = Math.min(window.innerWidth, window.innerHeight) < 640;
-  const PW = MOBILE ? 80 : 110, PH = Math.round(PW * 1.5);
-  const spacing = PH * 1.15;
-  RADIUS = Math.max(MOBILE ? 210 : 280, spacing / Math.sqrt(4 * Math.PI / Math.max(N, 2)));
-  POSTER_H = PH;
-
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 1, 8000);
-  // Pull the camera back far enough that the whole sphere (plus a poster of
-  // margin) fits the narrow dimension of the screen — this is what stops the
-  // crowded, cropped feel on portrait phones. Desktop keeps the classic view.
-  const fitZ = (RADIUS + PH) / (Math.tan(Math.PI / 6) * camera.aspect) * 1.05;
-  camera.position.z = Math.max(RADIUS * 2.7, camera.aspect < 1 ? fitZ : 0);
-  renderer = new THREE.CSS3DRenderer();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  document.getElementById('globe').appendChild(renderer.domElement);
-
-  group = new THREE.Group();
-  scene.add(group);
-
+  films = films.filter(f=>BLACK_TITLES.has(f.title)||String(f.title||'').startsWith('Eyimofe'));
+  const grid=document.getElementById('globe');
   films.forEach((f, i) => {
-    const el = document.createElement('div');
+    const el = document.createElement('button');
+    el.type='button';
     el.className = 'poster3d';
-    el.style.width = PW + 'px';
-    el.style.height = PH + 'px';
     el.style.backgroundImage = `url('${esc(f.poster_url || '')}')`;
+    el.setAttribute('aria-label',`Open ${f.title} (${f.year||''})`);
     el.innerHTML = `<div class="pt">${esc(f.title)}</div>`;
-    el.addEventListener('click', (ev) => { ev.stopPropagation(); if (!didDrag) openCard(f); });
-    f._el = el;                                  // so search can spotlight/dim it
-
-    // Fibonacci sphere distribution
-    const phi = Math.acos(1 - 2 * (i + 0.5) / N);
-    const theta = Math.PI * (1 + Math.sqrt(5)) * (i + 0.5);
-    const x = Math.sin(phi) * Math.cos(theta);
-    const y = Math.sin(phi) * Math.sin(theta);
-    const z = Math.cos(phi);
-
-    const obj = new THREE.CSS3DObject(el);
-    obj.position.set(x * RADIUS, y * RADIUS, z * RADIUS);
-    obj.lookAt(obj.position.clone().multiplyScalar(2)); // face outward
-    group.add(obj);
+    el.addEventListener('click',()=>openCard(f));
+    f._el=el;
+    grid.appendChild(el);
   });
-
-  // ---- interaction ----
-  const dom = renderer.domElement;
-  const onDown = (e) => { dragging = true; didDrag = false; downAt = Date.now(); const p = pt(e); last = p; };
-  const onMove = (e) => {
-    if (!dragging) return;
-    const p = pt(e);
-    const dx = p.x - last.x, dy = p.y - last.y;
-    if (Math.abs(dx) + Math.abs(dy) > 4) didDrag = true;
-    vel.y = dx * 0.0045; vel.x = dy * 0.0045;
-    group.rotation.y += vel.y; group.rotation.x += vel.x;
-    last = p;
-    document.getElementById('hint').style.opacity = '0';
-  };
-  const onUp = () => { dragging = false; };
-  dom.addEventListener('mousedown', onDown); window.addEventListener('mousemove', onMove); window.addEventListener('mouseup', onUp);
-  dom.addEventListener('touchstart', onDown, { passive: true }); window.addEventListener('touchmove', onMove, { passive: true }); window.addEventListener('touchend', onUp);
-  window.addEventListener('resize', onResize);
-
-  animate();
-}
-
-function pt(e){ const t = e.touches ? e.touches[0] : e; return { x: t.clientX, y: t.clientY }; }
-function onResize(){
-  camera.aspect = window.innerWidth/window.innerHeight;
-  camera.updateProjectionMatrix();
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  const fitZ = (RADIUS + POSTER_H) / (Math.tan(Math.PI / 6) * camera.aspect) * 1.05;
-  camera.position.z = Math.max(RADIUS * 2.7, camera.aspect < 1 ? fitZ : 0);
-}
-
-function animate(){
-  requestAnimationFrame(animate);
-  if (!dragging) {
-    // momentum + gentle idle auto-rotation
-    vel.y *= 0.95; vel.x *= 0.95;
-    group.rotation.y += vel.y + 0.0012;
-    group.rotation.x += vel.x;
-  }
-  // keep posters upright-ish (counter-tilt clamp)
-  group.rotation.x = Math.max(-0.6, Math.min(0.6, group.rotation.x));
-  renderer.render(scene, camera);
 }
 
 // ---- film card ----

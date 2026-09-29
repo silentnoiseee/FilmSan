@@ -56,10 +56,21 @@ footer{border-color:var(--cr-line)!important;color:#6f6d66!important}
 footer .wm{font-family:"Instrument Serif",Georgia,serif!important;font-weight:400!important;color:var(--cr-ink)!important}
 footer .wm b{color:var(--cr-acid)!important;font-weight:400!important}
 
+.films-page-root{height:auto!important;min-height:100%;overflow:auto!important}.films-page{height:auto!important;min-height:100%;overflow:auto!important;background:var(--cr-paper)!important}
+.films-page header.masthead{position:fixed!important}
+.films-page #globe{position:relative!important;inset:auto!important;z-index:1;min-height:100vh;padding:172px 14px 92px;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px;cursor:default!important;touch-action:auto!important}
+.films-page #globe .poster3d{appearance:none;width:100%!important;height:auto!important;aspect-ratio:2/3;border-radius:10px!important;border:1px solid var(--cr-line)!important;padding:0;color:var(--cr-ink);font:inherit;text-align:left;box-shadow:none!important;transform:none!important}
+.films-page #globe .poster3d:hover,.films-page #globe .poster3d:focus-visible{border-color:var(--cr-acid)!important;transform:translateY(-3px)!important;outline:0}
+.films-page #globe .poster3d .pt{opacity:1!important}
+.films-page .hint{position:static!important;padding:0 14px 28px}
+
+@media(max-width:900px){.films-page #globe{grid-template-columns:repeat(3,minmax(0,1fr))}}
+
 @media(max-width:600px){
   header.masthead .bar{min-height:56px}
   .wordmark{font-size:20px!important}
   nav.nav{gap:12px!important;overflow-x:auto!important;justify-content:flex-start!important;padding-left:56px!important;padding-right:56px!important;scrollbar-width:none}
   .lead{padding-top:34px!important}
   .lead h1{font-size:46px!important}
+  .films-page #globe{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;padding:164px 7px 70px}
 }
