@@ -75,6 +75,7 @@
 function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 function slugify(film, year){ return String(film).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + year; }
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+function filmName(name){return String(name||'').startsWith('Eyimofe')?'Eyimofe (This Is My Desire)':String(name||'')}
 const BLACK_TITLES=new Set(["My Father's Shadow","Gang Tapes","Belly","Touki Bouki","Mother of George","Black Girl","Sinners","Waves","A Haunted House"]);
 
 let GIFS = [];
@@ -82,12 +83,13 @@ const wall = document.getElementById('wall');
 
 function tileEl(g){
   const el = document.createElement('a');
+  const name=filmName(g.film);
   el.className = 'tile';
-  el.href = 'film.html?slug=' + encodeURIComponent(slugify(g.film, g.year));
-  el.setAttribute('aria-label',`Open ${g.film} (${g.year})`);
+  el.href = 'film.html?slug=' + encodeURIComponent(slugify(name, g.year));
+  el.setAttribute('aria-label',`Open ${name} (${g.year})`);
   el.innerHTML =
     `${g.poster ? `<img class="pf" src="${esc(g.poster)}" alt="" loading="lazy" decoding="async">` : ''}
-     <video muted playsinline preload="none" data-src="${esc(g.src)}"${g.loop?` data-loop="${+g.loop}"`:''}></video>`;
+     <video autoplay muted playsinline preload="metadata" data-src="${esc(g.src)}"${g.loop?` data-loop="${+g.loop}"`:''}></video>`;
   return el;
 }
 
@@ -160,6 +162,7 @@ function render(){
     });
   }, { rootMargin: '0px', threshold: 0.15 });
   tiles.forEach(t => io.observe(t));
+  requestAnimationFrame(()=>tiles.forEach(t=>{const r=t.getBoundingClientRect();if(r.top<innerHeight&&r.bottom>0)attach(t)}));
 }
 
 document.getElementById('shuffleBtn').onclick = render;
