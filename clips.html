@@ -76,7 +76,7 @@ function esc(s){ return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<
 function slugify(film, year){ return String(film).toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'') + '-' + year; }
 function shuffle(a){ a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
 function filmName(name){return String(name||'').startsWith('Eyimofe')?'Eyimofe (This Is My Desire)':String(name||'')}
-const BLACK_TITLES=new Set(["My Father's Shadow","Gang Tapes","Belly","Touki Bouki","Mother of George","Black Girl","Sinners","Waves","A Haunted House"]);
+const BLACK_TITLES=new Set(["My Father's Shadow","Gang Tapes","Belly","Touki Bouki","Mother of George","Black Girl","Sinners","Waves","A Haunted House","L'enfant lion","Watch Where the River Divides"]);
 
 let GIFS = [];
 const wall = document.getElementById('wall');
