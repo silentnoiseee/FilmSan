@@ -336,7 +336,8 @@ function wireActions(){
   document.getElementById('btnWatched').onclick = () => setStatus('watched');
   document.getElementById('btnLike').onclick = toggleLike;
   const rv=document.getElementById('btnReviews'); if(rv) rv.onclick=()=>document.getElementById('reviews').scrollIntoView({behavior:'smooth'});
-  const wb=document.getElementById('btnWatch'); if(wb) wb.onclick=()=>document.getElementById('clips').scrollIntoView({behavior:'smooth'});
+  const wb=document.getElementById('btnWatch');
+  if(wb) wb.onclick=()=>{ location.href='feed.html#film='+encodeURIComponent(feedKey()); };
   loadState();
 }
 
