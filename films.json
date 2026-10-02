@@ -69,16 +69,56 @@
         "feed_key": "Watch Where the River Divides|2023",
         "title": "Watch Where the River Divides",
         "year": "2023",
-        "director": "",
-        "overview": "",
-        "tagline": "",
-        "runtime": null,
+        "director": "M.D. Neely",
+        "overview": "After his baptism, the son of a Kenyan clan leader returns to his village and must choose between inheriting his father's legacy and following a new purpose that could cost him his life. Based on a true story.",
+        "tagline": "A true story of legacy, faith, and courage.",
+        "runtime": 33,
         "poster_url": "assets/where-the-river-divides-cover.jpg",
         "backdrop_url": "https://vz-96254ab3-0d6.b-cdn.net/c8ddc0aa-41f8-45dc-8b45-f57ffd9d9753/thumbnail.jpg",
-        "genres": [],
-        "cast_list": [],
+        "genres": [
+            "Biography",
+            "Drama",
+            "Short"
+        ],
+        "cast_list": [
+            {
+                "name": "Shandra Apondi",
+                "character": "Mary",
+                "photo_url": null
+            },
+            {
+                "name": "Fred Kasuku",
+                "character": "Ochanda",
+                "photo_url": null
+            },
+            {
+                "name": "Caroline Midimo",
+                "character": "Persila",
+                "photo_url": null
+            },
+            {
+                "name": "Collins Ochieng",
+                "character": "Phillip",
+                "photo_url": null
+            },
+            {
+                "name": "Gadwill Odhiambo",
+                "character": "Dennis",
+                "photo_url": null
+            },
+            {
+                "name": "Benjamin A. Onyango",
+                "character": "Aburu",
+                "photo_url": null
+            },
+            {
+                "name": "Alan Oyugi",
+                "character": "Magero",
+                "photo_url": null
+            }
+        ],
         "watch_providers": {},
-        "tmdb_rating": null
+        "tmdb_rating": 9.3
     },
     {
         "tmdb_id": 1432605,
